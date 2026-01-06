@@ -12,7 +12,24 @@ import importlib
 import datetime
 import random
 
+import csv
+import os
 
+class MetricLogger:
+    def __init__(self, save_path, fieldnames):
+        self.save_path = save_path
+        self.fieldnames = fieldnames
+    
+        if not os.path.exists(save_path):
+            with open(save_path, mode='w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+
+    def log(self, data_dict):
+        with open(self.save_path, mode='a', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=self.fieldnames)
+            writer.writerow(data_dict)
+            
 def get_local_time():
     r"""Get current time
 

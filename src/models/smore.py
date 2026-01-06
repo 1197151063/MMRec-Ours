@@ -54,23 +54,23 @@ class SMORE(GeneralRecommender):
         if self.v_feat is not None:
             self.image_embedding = nn.Embedding.from_pretrained(self.v_feat, freeze=False)
             if os.path.exists(image_adj_file):
-                image_adj = torch.load(image_adj_file)
+                image_adj = torch.load(image_adj_file,map_location=self.device)
             else:
                 image_adj = build_sim(self.image_embedding.weight.detach())
                 image_adj = build_knn_normalized_graph(image_adj, topk=self.image_knn_k, is_sparse=self.sparse,
                                                        norm_type='sym')
                 torch.save(image_adj, image_adj_file)
-            self.image_original_adj = image_adj.cuda()
+            self.image_original_adj = image_adj.to(self.device)
 
         if self.t_feat is not None:
             self.text_embedding = nn.Embedding.from_pretrained(self.t_feat, freeze=False)
             if os.path.exists(text_adj_file):
-                text_adj = torch.load(text_adj_file)
+                text_adj = torch.load(text_adj_file,map_location=self.device)
             else:
                 text_adj = build_sim(self.text_embedding.weight.detach())
                 text_adj = build_knn_normalized_graph(text_adj, topk=self.text_knn_k, is_sparse=self.sparse, norm_type='sym')
                 torch.save(text_adj, text_adj_file)
-            self.text_original_adj = text_adj.cuda() 
+            self.text_original_adj = text_adj.to(self.device)
 
         self.fusion_adj = self.max_pool_fusion()
 
@@ -163,7 +163,6 @@ class SMORE(GeneralRecommender):
 
         def normalized_adj_single(adj):
             rowsum = np.array(adj.sum(1))
-
             d_inv = np.power(rowsum, -0.5).flatten()
             d_inv[np.isinf(d_inv)] = 0.
             d_mat_inv = sp.diags(d_inv)
@@ -336,7 +335,11 @@ class SMORE(GeneralRecommender):
         return batch_mf_loss + batch_emb_loss + batch_reg_loss + self.cl_loss * cl_loss
 
     def full_sort_predict(self, interaction):
-        user = interaction[0]
+        if isinstance(interaction, list):
+            user = interaction[0] 
+        else:
+            user = interaction  
+ 
 
         restore_user_e, restore_item_e = self.forward(self.norm_adj)
         u_embeddings = restore_user_e[user]
@@ -344,3 +347,4 @@ class SMORE(GeneralRecommender):
         # dot with all item embedding to accelerate
         scores = torch.matmul(u_embeddings, restore_item_e.transpose(0, 1))
         return scores
+    

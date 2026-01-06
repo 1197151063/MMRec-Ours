@@ -16,7 +16,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from common.abstract_recommender import GeneralRecommender
-from sparsesvd import sparsesvd
+from scipy.sparse.linalg import svds
 
 
 class PGL(GeneralRecommender):
@@ -36,6 +36,7 @@ class PGL(GeneralRecommender):
         self.n_nodes = self.n_users + self.n_items
 
         self.sub_graph, self.mm_adj = None, None
+
 
         # load dataset info
         self.interaction_matrix = dataset.inter_matrix(form='coo').astype(np.float32)
@@ -105,6 +106,9 @@ class PGL(GeneralRecommender):
         cols_inv_sqrt = r_inv_sqrt[indices[1]]
         values = rows_inv_sqrt * cols_inv_sqrt
         return torch.sparse.FloatTensor(indices, values, adj_size)
+    
+    def get_user_embedding(self):
+        return  torch.cat([self.user_image.weight, self.user_text.weight], dim=1)
 
     def get_norm_adj_mat(self):
         A = sp.dok_matrix((self.n_users + self.n_items,
@@ -137,7 +141,7 @@ class PGL(GeneralRecommender):
 
     def global_subgraph_extraction(self, adj):
         norm_adj = adj.tocsc()
-        ut, s, vt = sparsesvd(norm_adj, self.embedding_dim)
+        ut, s, vt  = svds(norm_adj, k=self.embedding_dim)
 
         # Get the top and bottom 25% of singular values
         num_top_bottom = int(0.25 * self.embedding_dim)
@@ -259,7 +263,11 @@ class PGL(GeneralRecommender):
         return batch_mf_loss + self.reg_weight * cl_loss
 
     def full_sort_predict(self, interaction):
-        user = interaction[0]
+        if isinstance(interaction, list):
+            user = interaction[0] 
+        else:
+            user = interaction  
+ 
 
         restore_user_e, restore_item_e = self.forward(self.norm_adj)
         u_embeddings = restore_user_e[user]

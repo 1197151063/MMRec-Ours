@@ -10,15 +10,21 @@ from itertools import product
 from utils.dataset import RecDataset
 from utils.dataloader import TrainDataLoader, EvalDataLoader
 from utils.logger import init_logger
+
 from utils.configurator import Config
 from utils.utils import init_seed, get_model, get_trainer, dict2str
 import platform
 import os
+import torch
 
+
+
+          
 
 def quick_start(model, dataset, config_dict, save_model=True, mg=False):
     # merge config dict
     config = Config(model, dataset, config_dict, mg)
+
     init_logger(config)
     logger = getLogger()
     # print config infor
@@ -32,6 +38,9 @@ def quick_start(model, dataset, config_dict, save_model=True, mg=False):
     logger.info(str(dataset))
 
     train_dataset, valid_dataset, test_dataset = dataset.split()
+    train_df = train_dataset.df
+    train_edge_index = torch.tensor(train_df[['userID', 'itemID']].values.T, dtype=torch.long)
+
     logger.info('\n====Training====\n' + str(train_dataset))
     logger.info('\n====Validation====\n' + str(valid_dataset))
     logger.info('\n====Testing====\n' + str(test_dataset))
@@ -78,7 +87,12 @@ def quick_start(model, dataset, config_dict, save_model=True, mg=False):
         trainer = get_trainer()(config, model, mg)
         # debug
         # model training
-        best_valid_score, best_valid_result, best_test_upon_valid = trainer.fit(train_data, valid_data=valid_data, test_data=test_data, saved=save_model)
+        best_valid_score, best_valid_result, best_test_upon_valid = trainer.fit(train_data, 
+                                                                                valid_data=valid_data, 
+                                                                                test_data=test_data, 
+                                                                                saved=save_model,
+                                                                                train_edge_index=train_edge_index,
+                                                                                num_users=dataset.user_num)
         #########
         hyper_ret.append((hyper_tuple, best_valid_result, best_test_upon_valid))
 
@@ -93,6 +107,8 @@ def quick_start(model, dataset, config_dict, save_model=True, mg=False):
         logger.info('████Current BEST████:\nParameters: {}={},\n'
                     'Valid: {},\nTest: {}\n\n\n'.format(config['hyper_parameters'],
             hyper_ret[best_test_idx][0], dict2str(hyper_ret[best_test_idx][1]), dict2str(hyper_ret[best_test_idx][2])))
+        
+        break
 
     # log info
     logger.info('\n============All Over=====================')

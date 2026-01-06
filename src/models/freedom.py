@@ -62,7 +62,7 @@ class FREEDOM(GeneralRecommender):
             self.text_trs = nn.Linear(self.t_feat.shape[1], self.feat_embed_dim)
 
         if os.path.exists(mm_adj_file):
-            self.mm_adj = torch.load(mm_adj_file)
+            self.mm_adj = torch.load(mm_adj_file,map_location=(self.device))
         else:
             if self.v_feat is not None:
                 indices, image_adj = self.get_knn_adj_mat(self.image_embedding.weight.detach())
@@ -100,15 +100,16 @@ class FREEDOM(GeneralRecommender):
         return torch.sparse.FloatTensor(indices, values, adj_size)
 
     def get_norm_adj_mat(self):
-        A = sp.dok_matrix((self.n_users + self.n_items,
-                           self.n_users + self.n_items), dtype=np.float32)
-        inter_M = self.interaction_matrix
-        inter_M_t = self.interaction_matrix.transpose()
-        data_dict = dict(zip(zip(inter_M.row, inter_M.col + self.n_users),
-                             [1] * inter_M.nnz))
-        data_dict.update(dict(zip(zip(inter_M_t.row + self.n_users, inter_M_t.col),
-                                  [1] * inter_M_t.nnz)))
-        A._update(data_dict)
+        n = self.n_users + self.n_items
+
+        inter_M = self.interaction_matrix.tocoo()
+        inter_M_t = inter_M.transpose().tocoo()
+
+        rows = np.concatenate([inter_M.row, inter_M_t.row + self.n_users])
+        cols = np.concatenate([inter_M.col + self.n_users, inter_M_t.col])
+        data = np.ones_like(rows, dtype=np.float32)
+
+        A = sp.coo_matrix((data, (rows, cols)), shape=(n, n), dtype=np.float32).tocsr()
         # norm adj matrix
         sumArr = (A > 0).sum(axis=1)
         # add epsilon to avoid Devide by zero Warning
@@ -207,10 +208,13 @@ class FREEDOM(GeneralRecommender):
         if self.v_feat is not None:
             image_feats = self.image_trs(self.image_embedding.weight)
             mf_v_loss = self.bpr_loss(ua_embeddings[users], image_feats[pos_items], image_feats[neg_items])
-        return batch_mf_loss + self.reg_weight * (mf_t_loss + mf_v_loss)
+        return batch_mf_loss + self.reg_weight * (mf_t_loss + mf_v_loss), batch_mf_loss, (mf_t_loss + mf_v_loss)
 
     def full_sort_predict(self, interaction):
-        user = interaction[0]
+        if isinstance(interaction, list):
+            user = interaction[0] 
+        else:
+            user = interaction  
 
         restore_user_e, restore_item_e = self.forward(self.norm_adj)
         u_embeddings = restore_user_e[user]
