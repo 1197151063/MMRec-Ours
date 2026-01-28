@@ -101,3 +101,5 @@ class GeneralRecommender(AbstractRecommender):
                     self.device)
 
             assert self.v_feat is not None or self.t_feat is not None, 'Features all NONE'
+
+

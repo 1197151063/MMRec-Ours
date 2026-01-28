@@ -279,8 +279,12 @@ class DRAGON(GeneralRecommender):
     def full_sort_predict(self, interaction):
         user_tensor = self.result_embed[:self.n_users]
         item_tensor = self.result_embed[self.n_users:]
-
-        temp_user_tensor = user_tensor[interaction[0], :]
+        if isinstance(interaction, list):
+            user = interaction[0] 
+        else:
+            user = interaction 
+        temp_user_tensor = user_tensor[user, :]
+ 
         score_matrix = torch.matmul(temp_user_tensor, item_tensor.t())
         return score_matrix
 

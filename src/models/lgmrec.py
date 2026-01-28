@@ -194,7 +194,10 @@ class LGMRec(GeneralRecommender):
         return loss
 
     def full_sort_predict(self, interaction):
-        user = interaction[0]
+        if isinstance(interaction, list):
+            user = interaction[0] 
+        else:
+            user = interaction  
         user_embs, item_embs, _ = self.forward()
         scores = torch.matmul(user_embs[user], item_embs.T)
         return scores

@@ -336,7 +336,11 @@ class SMORE(GeneralRecommender):
         return batch_mf_loss + batch_emb_loss + batch_reg_loss + self.cl_loss * cl_loss
 
     def full_sort_predict(self, interaction):
-        user = interaction[0]
+        if isinstance(interaction, list):
+            user = interaction[0] 
+        else:
+            user = interaction  
+ 
 
         restore_user_e, restore_item_e = self.forward(self.norm_adj)
         u_embeddings = restore_user_e[user]
@@ -344,3 +348,4 @@ class SMORE(GeneralRecommender):
         # dot with all item embedding to accelerate
         scores = torch.matmul(u_embeddings, restore_item_e.transpose(0, 1))
         return scores
+    

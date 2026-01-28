@@ -207,10 +207,13 @@ class FREEDOM(GeneralRecommender):
         if self.v_feat is not None:
             image_feats = self.image_trs(self.image_embedding.weight)
             mf_v_loss = self.bpr_loss(ua_embeddings[users], image_feats[pos_items], image_feats[neg_items])
-        return batch_mf_loss + self.reg_weight * (mf_t_loss + mf_v_loss)
+        return batch_mf_loss + self.reg_weight * (mf_t_loss + mf_v_loss), batch_mf_loss , mf_t_loss + mf_v_loss
 
     def full_sort_predict(self, interaction):
-        user = interaction[0]
+        if isinstance(interaction, list):
+            user = interaction[0] 
+        else:
+            user = interaction  
 
         restore_user_e, restore_item_e = self.forward(self.norm_adj)
         u_embeddings = restore_user_e[user]

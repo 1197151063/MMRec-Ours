@@ -12,13 +12,60 @@ import torch.optim as optim
 from torch.nn.utils.clip_grad import clip_grad_norm_
 import numpy as np
 import matplotlib.pyplot as plt
-
+from utils.utils import MetricLogger
 from time import time
 from logging import getLogger
-
+import torch.nn.functional as F
 from utils.utils import get_local_time, early_stopping, dict2str
 from utils.topk_evaluator import TopKEvaluator
+from torch_geometric.utils import degree
+from datetime import datetime
+def CDM(E):
+    E = F.normalize(E, dim=-1)
+    mean_vec = E.mean(dim=0)
+    return (mean_vec * mean_vec).sum()
+def test(k_values:list,
+         model,
+         train_edge_index,
+         num_users,
+         ):
+    model.eval()
+    train_edge_index = train_edge_index.to(model.device)
+    recall = {k: 0 for k in k_values}
+    ndcg = {k: 0 for k in k_values}
+    total_examples = 0
+    for start in range(0, num_users, 2048):
+        end = start + 2048
+        if end > num_users:
+            end = num_users
+        src_index=torch.arange(start,end).long().to(model.device)
+        logits = model.full_sort_predict(src_index)
+        ground_truth = torch.zeros_like(logits, dtype=torch.bool,device=train_edge_index.device)
+        mask = ((train_edge_index[0] >= start) &
+                (train_edge_index[0] < end))
+        masked_interactions = train_edge_index[:,mask]
+        ground_truth[masked_interactions[0] - start,masked_interactions[1]] = True
+        node_count = degree(train_edge_index[0, mask] - start,
+                            num_nodes=logits.size(0))
+        topk_indices = logits.topk(max(k_values),dim=-1).indices
+        for k in k_values:
+            topk_index = topk_indices[:,:k]
+            isin_mat = ground_truth.gather(1, topk_index)
+            # Calculate recall
+            recall[k] += float((isin_mat.sum(dim=-1) / node_count.clamp(1e-6)).sum())
+            # Calculate NDCG
+            log_positions = torch.log2(torch.arange(2, k + 2, device=logits.device).float())
+            dcg = (isin_mat / log_positions).sum(dim=-1)
+            ideal_dcg = torch.zeros_like(dcg)
+            for i in range(len(dcg)):
+                ideal_dcg[i] = (1.0 / log_positions[:node_count[i].clamp(0, k).int()]).sum()
+            ndcg[k] += float((dcg / ideal_dcg.clamp(min=1e-6)).sum())
 
+        total_examples += int((node_count > 0).sum())
+
+    recall = {k: recall[k] / total_examples for k in k_values}
+    ndcg = {k: ndcg[k] / total_examples for k in k_values}
+    return recall,ndcg
 
 class AbstractTrainer(object):
     r"""Trainer Class is used to manage the training and evaluation processes of recommender system models.
@@ -63,6 +110,9 @@ class Trainer(AbstractTrainer):
         super(Trainer, self).__init__(config, model)
 
         self.logger = getLogger()
+        self.model_name = config['model']
+        self.dataset_name = config['dataset']
+        self.time_series = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.learner = config['learner']
         self.learning_rate = config['learning_rate']
         self.epochs = config['epochs']
@@ -220,7 +270,7 @@ class Trainer(AbstractTrainer):
             train_loss_output += 'train loss: %.4f' % losses
         return train_loss_output + ']'
 
-    def fit(self, train_data, valid_data=None, test_data=None, saved=False, verbose=True):
+    def fit(self, train_data, valid_data=None, test_data=None, saved=False, verbose=True,train_edge_index=None,num_users=None):
         r"""Train the model based on the train data and the valid data.
 
         Args:
@@ -234,9 +284,19 @@ class Trainer(AbstractTrainer):
         Returns:
              (float, dict): best valid score and best valid result. If valid_data is None, it returns (-1, None)
         """
+        save_file_name = self.model_name + '_' + self.dataset_name + '_' + self.time_series + '_' + '.csv'
+        metric_logger = MetricLogger(
+                    save_path="./csv/" + save_file_name,
+                    fieldnames=[
+                        "epoch",
+                        "train",
+                        "valid",
+                        "test",
+                ])
         for epoch_idx in range(self.start_epoch, self.epochs):
             # train
             training_start_time = time()
+
             self.model.pre_epoch_processing()
             train_loss, _ = self._train_epoch(train_data, epoch_idx)
             if torch.is_tensor(train_loss):
@@ -260,12 +320,15 @@ class Trainer(AbstractTrainer):
             if (epoch_idx + 1) % self.eval_step == 0:
                 valid_start_time = time()
                 valid_score, valid_result = self._valid_epoch(valid_data)
+                recall,ndcg = test([10,20],model=self.model,train_edge_index=train_edge_index,num_users=num_users)
+
                 self.best_valid_score, self.cur_step, stop_flag, update_flag = early_stopping(
                     valid_score, self.best_valid_score, self.cur_step,
                     max_step=self.stopping_step, bigger=self.valid_metric_bigger)
+                dist = CDM(self.model.user_embedding.weight)
                 valid_end_time = time()
-                valid_score_output = "epoch %d evaluating [time: %.2fs, valid_score: %f]" % \
-                                     (epoch_idx, valid_end_time - valid_start_time, valid_score)
+                valid_score_output = "epoch %d evaluating [time: %.2fs, valid_score: %f], dist = %.8f" % \
+                                     (epoch_idx, valid_end_time - valid_start_time, valid_score,dist)
                 valid_result_output = 'valid result: \n' + dict2str(valid_result)
                 # test
                 _, test_result = self._valid_epoch(test_data)
@@ -279,7 +342,12 @@ class Trainer(AbstractTrainer):
                         self.logger.info(update_output)
                     self.best_valid_result = valid_result
                     self.best_test_upon_valid = test_result
-
+                metric_logger.log({
+                            "epoch": epoch_idx + 1,
+                            "train": recall[20],
+                            "valid": valid_result['recall@20'],
+                            "test": test_result['recall@20'],
+                        })
                 if stop_flag:
                     stop_output = '+++++Finished training, best eval result in epoch %d' % \
                                   (epoch_idx - self.cur_step * self.eval_step)
