@@ -53,9 +53,8 @@ def quick_start(model, dataset, config_dict, save_model=True, mg=False):
 
     ############ Dataset loadded, run model
     hyper_ret = []
-    val_metric = config['valid_metric'].lower()
-    best_test_value = 0.0
-    idx = best_test_idx = 0
+    best_valid_value = float('-inf') if config['valid_metric_bigger'] else float('inf')
+    idx = best_config_idx = 0
 
     logger.info('\n\n=================================\n\n')
 
@@ -64,7 +63,8 @@ def quick_start(model, dataset, config_dict, save_model=True, mg=False):
     if "seed" not in config['hyper_parameters']:
         config['hyper_parameters'] = ['seed'] + config['hyper_parameters']
     for i in config['hyper_parameters']:
-        hyper_ls.append(config[i] or [None])
+        value = config[i]
+        hyper_ls.append(value if isinstance(value, list) else [value])
     # combinations
     combinators = list(product(*hyper_ls))
     total_loops = len(combinators)
@@ -96,19 +96,20 @@ def quick_start(model, dataset, config_dict, save_model=True, mg=False):
         #########
         hyper_ret.append((hyper_tuple, best_valid_result, best_test_upon_valid))
 
-        # save best test
-        if best_test_upon_valid[val_metric] > best_test_value:
-            best_test_value = best_test_upon_valid[val_metric]
-            best_test_idx = idx
+        # Select hyperparameters using validation only.
+        improved = (best_valid_score > best_valid_value if config['valid_metric_bigger']
+                    else best_valid_score < best_valid_value)
+        if improved:
+            best_valid_value = best_valid_score
+            best_config_idx = idx
         idx += 1
 
         logger.info('best valid result: {}'.format(dict2str(best_valid_result)))
         logger.info('test result: {}'.format(dict2str(best_test_upon_valid)))
         logger.info('████Current BEST████:\nParameters: {}={},\n'
                     'Valid: {},\nTest: {}\n\n\n'.format(config['hyper_parameters'],
-            hyper_ret[best_test_idx][0], dict2str(hyper_ret[best_test_idx][1]), dict2str(hyper_ret[best_test_idx][2])))
+            hyper_ret[best_config_idx][0], dict2str(hyper_ret[best_config_idx][1]), dict2str(hyper_ret[best_config_idx][2])))
         
-        break
 
     # log info
     logger.info('\n============All Over=====================')
@@ -118,7 +119,7 @@ def quick_start(model, dataset, config_dict, save_model=True, mg=False):
 
     logger.info('\n\n█████████████ BEST ████████████████')
     logger.info('\tParameters: {}={},\nValid: {},\nTest: {}\n\n'.format(config['hyper_parameters'],
-                                                                   hyper_ret[best_test_idx][0],
-                                                                   dict2str(hyper_ret[best_test_idx][1]),
-                                                                   dict2str(hyper_ret[best_test_idx][2])))
+                                                                   hyper_ret[best_config_idx][0],
+                                                                   dict2str(hyper_ret[best_config_idx][1]),
+                                                                   dict2str(hyper_ret[best_config_idx][2])))
 

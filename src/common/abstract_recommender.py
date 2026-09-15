@@ -64,7 +64,7 @@ class AbstractRecommender(nn.Module):
         Model prints with number of trainable parameters
         """
         model_parameters = self.parameters()
-        params = sum([np.prod(p.size()) for p in model_parameters])
+        params = sum([np.prod(p.size()) for p in model_parameters if p.requires_grad])
         return super().__str__() + '\nTrainable parameters: {}'.format(params)
 
 

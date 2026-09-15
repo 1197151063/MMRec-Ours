@@ -24,6 +24,7 @@ def CDM(E):
     E = F.normalize(E, dim=-1)
     mean_vec = E.mean(dim=0)
     return (mean_vec * mean_vec).sum()
+@torch.no_grad()
 def test(k_values:list,
          model,
          train_edge_index,
@@ -39,7 +40,7 @@ def test(k_values:list,
         if end > num_users:
             end = num_users
         src_index=torch.arange(start,end).long().to(model.device)
-        logits = model.full_sort_predict(src_index)
+        logits = model.full_sort_predict([src_index])
         ground_truth = torch.zeros_like(logits, dtype=torch.bool,device=train_edge_index.device)
         mask = ((train_edge_index[0] >= start) &
                 (train_edge_index[0] < end))
@@ -112,7 +113,7 @@ class Trainer(AbstractTrainer):
         self.logger = getLogger()
         self.model_name = config['model']
         self.dataset_name = config['dataset']
-        self.time_series = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.time_series = datetime.now().strftime("%Y-%m-%d_%H-%M-%S-%f")
         self.learner = config['learner']
         self.learning_rate = config['learning_rate']
         self.epochs = config['epochs']
@@ -202,7 +203,13 @@ class Trainer(AbstractTrainer):
         for batch_idx, interaction in enumerate(train_data):
             self.optimizer.zero_grad()
             second_inter = interaction.clone()
-            loss,id_loss,mm_loss = loss_func(interaction)
+            result = loss_func(interaction)
+            if isinstance(result, tuple):
+                # Existing instrumented models return (total, id diagnostic, modality diagnostic).
+                loss, id_loss, mm_loss = result
+            else:
+                loss = result
+                id_loss = mm_loss = loss.detach().new_tensor(float('nan'))
             total_loss = loss.item() if total_loss is None else total_loss + loss.item()
             total_id_loss = id_loss.item() if total_id_loss is None else total_id_loss + id_loss.item()
             total_mm_loss = mm_loss.item() if total_mm_loss is None else total_mm_loss + mm_loss.item()
@@ -281,6 +288,12 @@ class Trainer(AbstractTrainer):
         Returns:
              (float, dict): best valid score and best valid result. If valid_data is None, it returns (-1, None)
         """
+        os.makedirs('./csv', exist_ok=True)
+        checkpoint_path = None
+        if saved:
+            os.makedirs(self.config['checkpoint_dir'], exist_ok=True)
+            checkpoint_path = os.path.join(self.config['checkpoint_dir'],
+                f'{self.model_name}_{self.dataset_name}_{self.time_series}.pth')
         save_file_name = self.model_name + '_' + self.dataset_name + '_' + self.time_series + '_' + '.csv'
         metric_logger = MetricLogger(
                     save_path="./csv/" + save_file_name,
@@ -319,12 +332,16 @@ class Trainer(AbstractTrainer):
             if (epoch_idx + 1) % self.eval_step == 0:
                 valid_start_time = time()
                 valid_score, valid_result = self._valid_epoch(valid_data)
-                recall,ndcg = test([10,20],model=self.model,train_edge_index=train_edge_index,num_users=num_users)
+                recall = {20: float('nan')}
+                if self.config['evaluate_train'] is not False:
+                    recall, ndcg = test([10,20], model=self.model,
+                                       train_edge_index=train_edge_index, num_users=num_users)
 
                 self.best_valid_score, self.cur_step, stop_flag, update_flag = early_stopping(
                     valid_score, self.best_valid_score, self.cur_step,
                     max_step=self.stopping_step, bigger=self.valid_metric_bigger)
-                dist = CDM(self.model.user_embedding.weight)
+                embedding = getattr(self.model, 'user_embedding', None)
+                dist = CDM(embedding.weight).item() if embedding is not None else float('nan')
                 valid_end_time = time()
                 valid_score_output = "epoch %d evaluating [time: %.2fs, valid_score: %f], dist = %.8f" % \
                                      (epoch_idx, valid_end_time - valid_start_time, valid_score,dist)
@@ -341,6 +358,12 @@ class Trainer(AbstractTrainer):
                         self.logger.info(update_output)
                     self.best_valid_result = valid_result
                     self.best_test_upon_valid = test_result
+                    if checkpoint_path:
+                        torch.save({'state_dict': self.model.state_dict(),
+                                    'config': self.config.final_config_dict,
+                                    'epoch': epoch_idx + 1,
+                                    'valid_result': valid_result,
+                                    'test_result': test_result}, checkpoint_path)
                 metric_logger.log({
                             "epoch": epoch_idx + 1,
                             "train": recall[20],
@@ -355,6 +378,8 @@ class Trainer(AbstractTrainer):
                     if verbose:
                         self.logger.info(stop_output)
                     break
+        if checkpoint_path:
+            self.logger.info('Best-validation checkpoint: %s', checkpoint_path)
         return self.best_valid_score, self.best_valid_result, self.best_test_upon_valid
 
 

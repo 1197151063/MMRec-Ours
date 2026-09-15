@@ -68,3 +68,64 @@ year = {2023}
   year={2023}
 }
 ```
+
+## SIMMRec: frozen content with an item ID residual
+
+This experimental baseline removes both positional encodings and all graph propagation.
+It freezes and normalizes pretrained image/text features, uses a shared linear projector
+per modality, and scores normalized users against normalized fused item representations:
+
+`item = normalize(alpha * normalize(text_projection) + (1-alpha) * normalize(image_projection) + item_id_weight * item_residual)`
+
+The item residual is a regularized, learnable ID lookup, not a numeric encoding of the ID.
+This model is **not item-ID-free**. Setting `item_id_weight=0` removes the residual table.
+Training uses sampled softmax (positive included in the denominator), temperature scaling,
+and negatives drawn with replacement from the catalog excluding **training** positives only.
+Evaluation uses the same cosine score. No performance gains are claimed before real-data runs.
+
+### Server commands
+
+Use your existing MMRec Python environment. From the repository root:
+
+```bash
+git pull --ff-only
+cd src
+python main.py --model SIMMRec --dataset baby --data-path /absolute/path/to/data
+# Content-only ablation, same other settings:
+python main.py --model SIMMRec --dataset baby --data-path /absolute/path/to/data --item-id-weight 0
+# Optional 18-configuration validation search:
+python main.py --model SIMMRec --dataset baby --data-path /absolute/path/to/data --config configs/simmrec-search.yaml
+```
+
+The data root must contain `baby/baby.inter`, `baby/image_feat.npy`, and
+`baby/text_feat.npy`; feature rows must follow the interaction file's item mapping.
+Use `--dataset sports` or `--dataset clothing` for the other configured datasets.
+Without `--data-path`, the existing overall configuration's data path is retained.
+`--gpu-id 0` selects the GPU; `--epochs 2` can be used for a short smoke run.
+
+Defaults: dimension 64, text weight 0.5, ID residual weight 0.1, temperature 0.1,
+128 negatives, and sampled embedding L2 coefficient 0.0001. These are starting settings,
+not validated best parameters. The regularizer is the mean squared L2 norm of sampled
+user/residual vectors. Training projects only unique sampled items; evaluation caches
+catalog representations until the next training/evaluation phase.
+
+Results and full configurations appear in `src/log/` (the existing logger), epoch metrics
+in `src/csv/`, and best-validation checkpoints in `src/saved/` by default. Checkpoints include
+model state, configuration, epoch, and validation/test metrics. Hyperparameter selection
+uses validation scores and all configured combinations run. Test scores remain logged by
+the existing trainer; do not use them to choose configurations. Multiple seeds are run as
+separate grid entries: report all seeds, not the best seed. Training reconstruction Recall
+is disabled for SIMMRec; its CSV entry and unavailable ID/MM diagnostic losses are `nan`.
+
+The model has no numeric-ID branch. For a relabeling check, remap interactions, feature
+rows, and initialized entity parameter rows consistently; independent retraining may vary
+with initialization/sampling and should be compared across seeds.
+
+### Checks
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Tests cover exclusion of training positives, frozen feature gradients, trainable residuals,
+cosine scoring, the content-only ablation, and scores under consistent entity relabeling.

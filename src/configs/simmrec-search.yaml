@@ -1,0 +1,4 @@
+# 18 configurations, selected by validation Recall@20. Start with the default single run first.
+item_id_weight: [0.0, 0.1, 0.3]
+temperature: [0.05, 0.1, 0.2]
+num_negatives: [32, 128]
