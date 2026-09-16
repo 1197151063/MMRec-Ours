@@ -15,6 +15,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from models.simmrec import SIMMRec
+from models.lightmrecnope import LightMRecNoPE
 
 
 class SIMMRecTest(unittest.TestCase):
@@ -83,6 +84,37 @@ class SIMMRecTest(unittest.TestCase):
         torch.testing.assert_close(actual, original[users][:, items])
 
 
+    def test_id_only_needs_no_features_and_trains(self):
+        config = dict(self.config, representation='id', is_multimodal_model=False)
+        model = SIMMRec(config, self.loader)
+        self.assertFalse(hasattr(model, 'image_embedding'))
+        loss = model.calculate_loss(torch.tensor([[0, 1, 2], [0, 2, 4]]))
+        loss.backward()
+        self.assertGreater(model.item_embedding.weight.grad.abs().sum().item(), 0)
+        model.eval()
+        expected = torch.nn.functional.normalize(model.user_embedding.weight, dim=-1) @ torch.nn.functional.normalize(model.item_embedding.weight, dim=-1).T
+        torch.testing.assert_close(model.full_sort_predict(torch.arange(3)), expected)
+
+    def test_original_without_pe_keeps_loss_and_raw_scoring(self):
+        model = LightMRecNoPE(dict(self.config, temperature=0.04, num_negatives=32), self.loader).eval()
+        batch = torch.tensor([[0, 1, 2], [0, 2, 4]])
+        torch.manual_seed(42)
+        actual = model.calculate_loss(batch)
+        torch.manual_seed(42)
+        users, items = model.forward()
+        negatives = torch.randint(24, (3, 32))
+        candidates = torch.cat((batch[1, :, None], negatives), dim=1)
+        scores = (torch.nn.functional.normalize(items[candidates], dim=-1) *
+                  torch.nn.functional.normalize(users, dim=-1)[:, None]).sum(-1) / 0.04
+        expected = -torch.log(scores[:, 0].exp() / scores[:, 1:].exp().sum(-1)).mean()
+        torch.testing.assert_close(actual, expected)
+        torch.testing.assert_close(model.full_sort_predict(torch.arange(3)), users @ items.T)
+        model.train()
+        model.calculate_loss(batch).backward()
+        self.assertIsNotNone(model.image_embedding.weight.grad)
+        self.assertIsNotNone(model.text_embedding.weight.grad)
+        self.assertFalse(any('pe' in name for name, _ in model.named_buffers()))
+
     def test_server_entrypoint_runs_both_ablation_configs_and_saves(self):
         root = Path(__file__).resolve().parents[1]
         workspace = Path(self.folder.name)
@@ -114,6 +146,25 @@ class SIMMRecTest(unittest.TestCase):
             state = torch.load(checkpoint, map_location='cpu', **options)
             self.assertIn('recall@20', state['valid_result'])
             self.assertIn('image_trs.weight', state['state_dict'])
+        # Exercise the exact server diagnostic configurations, with short CPU runs.
+        for model_name, diagnostic, expected_runs in [
+            ('LightMRecNoPE', None, 1),
+            ('SIMMRec', 'simmrec-id-diagnostic.yaml', 3),
+            ('SIMMRec', 'simmrec-content-diagnostic.yaml', 9),
+        ]:
+            before = len(list((workspace / 'saved').glob('*.pth')))
+            import yaml
+            overrides = yaml.safe_load((root / 'src/configs' / diagnostic).read_text()) if diagnostic else {}
+            overrides.update(use_gpu=False, train_batch_size=8, eval_batch_size=2)
+            (workspace / 'diagnostic.yaml').write_text(yaml.safe_dump(overrides))
+            result = subprocess.run(
+                [sys.executable, str(root / 'src/main.py'), '--model', model_name,
+                 '--dataset', 'baby', '--data-path', str(workspace / 'data'),
+                 '--config', str(workspace / 'diagnostic.yaml'), '--epochs', '2'],
+                cwd=workspace, capture_output=True, text=True, timeout=120)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(len(list((workspace / 'saved').glob('*.pth'))) - before, expected_runs)
+
 
 
 if __name__ == '__main__':

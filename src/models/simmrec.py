@@ -19,22 +19,26 @@ class SIMMRec(GeneralRecommender):
             raise ValueError('alpha must be in [0, 1]; residual and regularization weights must be nonnegative')
         if self.temperature <= 0 or self.num_negatives < 1:
             raise ValueError('temperature and num_negatives must be positive')
-        if self.v_feat is None or self.t_feat is None:
-            raise ValueError('SIMMRec requires image_feat.npy and text_feat.npy')
-        for features in (self.v_feat, self.t_feat):
-            if features.ndim != 2 or features.shape[0] != self.n_items:
-                raise ValueError('Feature rows must match the complete item ID mapping')
-            if not torch.isfinite(features).all():
-                raise ValueError('Modality features must be finite')
-        self.image_embedding = nn.Embedding.from_pretrained(
-            F.normalize(self.v_feat, dim=-1), freeze=True)
-        self.text_embedding = nn.Embedding.from_pretrained(
-            F.normalize(self.t_feat, dim=-1), freeze=True)
-        self.image_trs = nn.Linear(self.v_feat.shape[1], dim)
-        self.text_trs = nn.Linear(self.t_feat.shape[1], dim)
+        self.representation = config['representation'] if 'representation' in config else 'content'
+        if self.representation not in ('content', 'id'):
+            raise ValueError('representation must be content or id')
+        if self.representation == 'content':
+            if self.v_feat is None or self.t_feat is None:
+                raise ValueError('SIMMRec requires image_feat.npy and text_feat.npy')
+            for features in (self.v_feat, self.t_feat):
+                if features.ndim != 2 or features.shape[0] != self.n_items:
+                    raise ValueError('Feature rows must match the complete item ID mapping')
+                if not torch.isfinite(features).all():
+                    raise ValueError('Modality features must be finite')
+            self.image_embedding = nn.Embedding.from_pretrained(
+                F.normalize(self.v_feat, dim=-1), freeze=True)
+            self.text_embedding = nn.Embedding.from_pretrained(
+                F.normalize(self.t_feat, dim=-1), freeze=True)
+            self.image_trs = nn.Linear(self.v_feat.shape[1], dim)
+            self.text_trs = nn.Linear(self.t_feat.shape[1], dim)
         self.user_embedding = nn.Embedding(self.n_users, dim)
         nn.init.normal_(self.user_embedding.weight, std=dim ** -0.5)
-        self.item_embedding = nn.Embedding(self.n_items, dim) if self.gamma else None
+        self.item_embedding = nn.Embedding(self.n_items, dim) if self.gamma or self.representation == 'id' else None
         if self.item_embedding is not None:
             nn.init.normal_(self.item_embedding.weight, std=dim ** -0.5)
 
@@ -52,6 +56,8 @@ class SIMMRec(GeneralRecommender):
         self._eval_embeddings = None
 
     def item_representations(self, items):
+        if self.representation == 'id':
+            return F.normalize(self.item_embedding(items), dim=-1)
         visual = F.normalize(self.image_trs(self.image_embedding(items)), dim=-1)
         textual = F.normalize(self.text_trs(self.text_embedding(items)), dim=-1)
         content = self.alpha * textual + (1 - self.alpha) * visual

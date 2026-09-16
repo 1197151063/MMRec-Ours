@@ -1,0 +1,8 @@
+# Three runs. Same loss, negative sampler, normalization and regularization as content.
+representation: id
+is_multimodal_model: False
+item_id_weight: [0.0]  # ignored in ID mode: item vector is normalize(q_i)
+alpha: [0.5]          # ignored in ID mode
+temperature: [0.05, 0.1, 0.2]
+num_negatives: [128]
+reg_weight: [0.0001]

@@ -1,0 +1,7 @@
+# Nine runs: visual-only, fusion, text-only crossed with temperature.
+representation: content
+item_id_weight: [0.0]
+alpha: [0.0, 0.5, 1.0]
+temperature: [0.05, 0.1, 0.2]
+num_negatives: [128]
+reg_weight: [0.0001]

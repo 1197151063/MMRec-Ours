@@ -129,3 +129,32 @@ python -m unittest discover -s tests -v
 
 Tests cover exclusion of training positives, frozen feature gradients, trainable residuals,
 cosine scoring, the content-only ablation, and scores under consistent entity relabeling.
+
+## Baby diagnostic experiments (after the September 16 logs)
+
+From `src/`, run all 13 configurations sequentially:
+
+```bash
+bash run_baby_diagnostics.sh /root/autodl-tmp/MMRec-Ours/data 0
+```
+
+1. **LightMRecNoPE (1 run):** reconstructs the original supplied LightMRec without either
+   positional encoding. Retains trainable raw features, three linear layers per modality,
+   BatchNorm and dropout 0.1, Xavier user initialization, 32 unfiltered negatives,
+   temperature 0.04, no explicit regularizer, and raw-dot evaluation after cosine training.
+   The decoupled loss uses algebraically equivalent logsumexp for numerical stability.
+   This intentionally preserves the original scoring mismatch and false-negative sampling
+   for diagnosis. It is not the clean baseline or a deployable recommendation.
+   Original alpha/LR were not supplied: defaults 0.5/0.001 must be matched to the original
+   run before calling the comparison strictly controlled. Other training settings inherit
+   the current overall config. No original PE scores are claimed reproduced.
+2. **SIMMRec content (9 runs):** alpha in {0, 0.5, 1}, temperature in {0.05, 0.1, 0.2},
+   no item residual, 128 negatives, frozen features. Alpha=0 is visual-only; alpha=1 text-only.
+3. **SIMMRec ID (3 runs):** temperature in {0.05, 0.1, 0.2}, pure normalized user/item ID
+   embeddings with the same sampled softmax, positive exclusion, negative count, optimizer,
+   dimension and sampled L2 regularizer as SIMMRec. No modality files are loaded in this mode.
+   `item_id_weight` and `alpha` have no effect in ID mode.
+
+Individual runs can use `--epochs 2` for a smoke check. All configurations use the current
+seed (999); use multiple seeds for final comparisons. Compare best-validation-selected test
+results. Equal seeds do not guarantee equal random streams across different architectures.

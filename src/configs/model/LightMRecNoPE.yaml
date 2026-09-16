@@ -1,0 +1,11 @@
+# Original supplied model, only both positional encodings removed.
+# Original experiment's alpha/LR were not provided: 0.5/0.001 are explicit assumptions.
+embedding_size: 64
+alpha: [0.5]
+temperature: [0.04]
+num_negatives: [32]
+learning_rate: 0.001
+weight_decay: 0.0
+use_neg_sampling: False
+evaluate_train: False
+hyper_parameters: [alpha, temperature, num_negatives]
