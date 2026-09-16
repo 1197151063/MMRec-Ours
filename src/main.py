@@ -28,6 +28,8 @@ if __name__ == '__main__':
     parser.add_argument('--item-id-weight', type=float, help='0 disables the item identity residual')
     parser.add_argument('--epochs', type=int)
     parser.add_argument('--gpu-id', type=int, default=0)
+    parser.add_argument('--save-model', action='store_true',
+                        help='Opt in to best-validation checkpoint files (default: metrics only)')
     args = parser.parse_args()
     if args.config:
         with open(args.config, encoding='utf-8') as stream:
@@ -40,6 +42,6 @@ if __name__ == '__main__':
     if args.epochs is not None:
         config_dict['epochs'] = args.epochs
 
-    quick_start(model=args.model, dataset=args.dataset, config_dict=config_dict, save_model=True)
+    quick_start(model=args.model, dataset=args.dataset, config_dict=config_dict, save_model=args.save_model)
 
 

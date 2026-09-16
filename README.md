@@ -110,7 +110,8 @@ user/residual vectors. Training projects only unique sampled items; evaluation c
 catalog representations until the next training/evaluation phase.
 
 Results and full configurations appear in `src/log/` (the existing logger), epoch metrics
-in `src/csv/`, and best-validation checkpoints in `src/saved/` by default. Checkpoints include
+in `src/csv/`, and optionally best-validation checkpoints in `src/saved/` with `--save-model`. By default,
+no model files are written; best-validation metrics are still tracked in memory. Checkpoints include
 model state, configuration, epoch, and validation/test metrics. Hyperparameter selection
 uses validation scores and all configured combinations run. Test scores remain logged by
 the existing trainer; do not use them to choose configurations. Multiple seeds are run as
@@ -158,3 +159,10 @@ bash run_baby_diagnostics.sh /root/autodl-tmp/MMRec-Ours/data 0
 Individual runs can use `--epochs 2` for a smoke check. All configurations use the current
 seed (999); use multiple seeds for final comparisons. Compare best-validation-selected test
 results. Equal seeds do not guarantee equal random streams across different architectures.
+
+### Checkpoint saving
+
+Model checkpoint writing is disabled by default, including all diagnostic script runs.
+Logs and epoch metric CSVs are retained, and early stopping / validation selection are unchanged.
+Add `--save-model` to an individual `main.py` command only when weights are needed.
+Existing saved files are not deleted. Disabling saving reduces I/O, not forward/backward compute.

@@ -21,7 +21,7 @@ import torch
 
           
 
-def quick_start(model, dataset, config_dict, save_model=True, mg=False):
+def quick_start(model, dataset, config_dict, save_model=False, mg=False):
     # merge config dict
     config = Config(model, dataset, config_dict, mg)
 

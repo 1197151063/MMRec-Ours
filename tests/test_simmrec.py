@@ -135,7 +135,7 @@ class SIMMRecTest(unittest.TestCase):
         result = subprocess.run(
             [sys.executable, str(root / 'src/main.py'), '--model', 'SIMMRec',
              '--dataset', 'baby', '--data-path', str(workspace / 'data'),
-             '--config', str(workspace / 'overrides.yaml'), '--epochs', '2'],
+             '--config', str(workspace / 'overrides.yaml'), '--epochs', '2', '--save-model'],
             cwd=workspace, capture_output=True, text=True, timeout=120)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         checkpoints = list((workspace / 'saved').glob('*.pth'))
@@ -153,6 +153,7 @@ class SIMMRecTest(unittest.TestCase):
             ('SIMMRec', 'simmrec-content-diagnostic.yaml', 9),
         ]:
             before = len(list((workspace / 'saved').glob('*.pth')))
+            csv_before = len(list((workspace / 'csv').glob('*.csv')))
             import yaml
             overrides = yaml.safe_load((root / 'src/configs' / diagnostic).read_text()) if diagnostic else {}
             overrides.update(use_gpu=False, train_batch_size=8, eval_batch_size=2)
@@ -163,7 +164,8 @@ class SIMMRecTest(unittest.TestCase):
                  '--config', str(workspace / 'diagnostic.yaml'), '--epochs', '2'],
                 cwd=workspace, capture_output=True, text=True, timeout=120)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            self.assertEqual(len(list((workspace / 'saved').glob('*.pth'))) - before, expected_runs)
+            self.assertEqual(len(list((workspace / 'saved').glob('*.pth'))), before)
+            self.assertEqual(len(list((workspace / 'csv').glob('*.csv'))) - csv_before, expected_runs)
 
 
 
