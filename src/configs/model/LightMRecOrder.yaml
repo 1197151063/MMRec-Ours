@@ -1,0 +1,13 @@
+# Controlled audit: original architecture/objective with explicit order coordinates.
+embedding_size: 64
+alpha: [0.5]
+temperature: [0.04]
+num_negatives: [32]
+learning_rate: 0.001
+weight_decay: 0.0
+use_neg_sampling: False
+evaluate_train: False
+order_source: [original, train_file, random, train_shuffled]
+pe_side: [user, item, both]
+order_seed: [2026]
+hyper_parameters: [alpha, temperature, num_negatives, order_source, pe_side, order_seed]

@@ -149,6 +149,8 @@ class SIMMRecTest(unittest.TestCase):
         # Exercise the exact server diagnostic configurations, with short CPU runs.
         for model_name, diagnostic, expected_runs in [
             ('LightMRecNoPE', None, 1),
+            ('LightMRecOrder', 'order-audit-none.yaml', 1),
+            ('LightMRecOrder', None, 12),
             ('SIMMRec', 'simmrec-id-diagnostic.yaml', 3),
             ('SIMMRec', 'simmrec-content-diagnostic.yaml', 9),
         ]:

@@ -166,3 +166,41 @@ Model checkpoint writing is disabled by default, including all diagnostic script
 Logs and epoch metric CSVs are retained, and early stopping / validation selection are unchanged.
 Add `--save-model` to an individual `main.py` command only when weights are needed.
 Existing saved files are not deleted. Disabling saving reduces I/O, not forward/backward compute.
+
+## Explicit original-order audit
+
+```bash
+cd src
+bash run_order_audit.sh /root/autodl-tmp/MMRec-Ours/data 0
+```
+
+Runs a fresh no-PE control and 12 experiments (4 coordinate sources x user-only,
+item-only, both). All use **LightMRecOrder**, the same original LightMRec reconstruction:
+trainable content, MLP/BatchNorm/dropout, decoupled cosine loss and raw-dot evaluation.
+Only assigned PE coordinates and their enabled side change. No weights are saved by default.
+
+- `original`: existing numeric IDs, not a newly reconstructed full-data first-seen order.
+- `train_file`: first appearance in the training subset of the current `.inter` file,
+  before loader shuffling. Validation/test rows are not consulted. Unseen entities are
+  appended using a fixed independent random permutation of remaining catalog IDs.
+- `random`: independent random bijections for users and items.
+- `train_shuffled`: shuffle only the training rows for coordinate construction, then
+  first-seen indexing. Actual optimizer training data/order is not changed.
+
+**Interpretation boundary:** the repository's preprocessing may already have sorted the
+`.inter` file by user ID. Filtering that file cannot recover raw input order. `train_file`
+is therefore a training-file-order control, not proof that all original order information
+or leakage has been eliminated. IDs and training row order may inherit full-data provenance.
+To isolate held-out influence on raw first-seen numbering, the original indexed row-order
+reference and mapping are needed. Do not infer leakage solely from differences in this grid.
+
+PE coordinates are assigned to the original lookup rows: interactions, content alignment,
+trainable parameter row initialization, and sampled negatives retain the same IDs. A local
+NumPy generator (`order_seed=2026`) avoids perturbing training RNG. Mapping fingerprints and
+unseen counts are logged. Initial defaults alpha=0.5/LR=0.001 still require matching to the
+original PE run before claiming a controlled reproduction of its reported scores.
+
+First check `original/both` against the historical PE result and `none` against LightMRecNoPE.
+If historical performance is not reproduced, resolve configuration/data/code differences
+before explaining other grid results. Compare validation-selected test scores; repeat
+promising/contradictory findings across training seeds and independent order seeds.
