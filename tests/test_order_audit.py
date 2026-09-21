@@ -37,7 +37,7 @@ class OrderAuditTest(unittest.TestCase):
                                            (1-model.alpha) * (visual + model.item_pe))
 
     def test_maps_are_bijections_reproducible_and_rng_independent(self):
-        for source in ['original', 'random', 'train_file', 'train_shuffled']:
+        for source in ['original', 'random', 'random_user', 'random_item', 'train_file', 'train_shuffled', 'train_degree']:
             torch.manual_seed(43)
             torch_state = torch.random.get_rng_state().clone()
             np.random.seed(44)
@@ -67,3 +67,23 @@ class OrderAuditTest(unittest.TestCase):
     def test_sinusoidal_has_expected_constant_norm(self):
         pe = sinusoidal(np.arange(24), 64)
         torch.testing.assert_close(pe.square().sum(-1), torch.full((24,), 32.0))
+
+    def test_encoding_controls_and_frozen_features(self):
+        for kind in ('sinusoidal', 'constant', 'gaussian'):
+            config = dict(self.config, pe_kind=kind, pe_side='both', pe_scale=0.3,
+                          item_pe_offset=1000, freeze_features=True, eval_cosine=True)
+            model = LightMRecOrder(config, self.loader).eval()
+            for encoding in (model.user_pe, model.item_pe):
+                torch.testing.assert_close(encoding.square().sum(-1), torch.full((len(encoding),), 3.0))
+            self.assertFalse(model.image_embedding.weight.requires_grad)
+            self.assertFalse(model.text_embedding.weight.requires_grad)
+            user, item = model.forward()
+            expected = torch.nn.functional.normalize(user, dim=-1) @ torch.nn.functional.normalize(item, dim=-1).T
+            torch.testing.assert_close(model.full_sort_predict(torch.arange(3)), expected)
+
+    def test_degree_positions_use_training_counts(self):
+        train = pd.DataFrame({'userID': [0, 0, 1], 'itemID': [4, 4, 2]})
+        users, items = make_positions(train, 'userID', 'itemID', 3, 24, 'train_degree', 2026)
+        self.assertEqual(users[0], 0)
+        self.assertEqual(items[4], 0)
+        self.assertEqual(items[2], 1)

@@ -14,6 +14,8 @@ from utils.logger import init_logger
 from utils.configurator import Config
 from utils.utils import init_seed, get_model, get_trainer, dict2str
 import platform
+import json
+from pathlib import Path
 import os
 import torch
 
@@ -53,6 +55,7 @@ def quick_start(model, dataset, config_dict, save_model=False, mg=False):
 
     ############ Dataset loadded, run model
     hyper_ret = []
+    run_records = []
     best_valid_value = float('-inf') if config['valid_metric_bigger'] else float('inf')
     idx = best_config_idx = 0
 
@@ -95,6 +98,17 @@ def quick_start(model, dataset, config_dict, save_model=False, mg=False):
                                                                                 num_users=dataset.user_num)
         #########
         hyper_ret.append((hyper_tuple, best_valid_result, best_test_upon_valid))
+        run_records.append({
+            'model': config['model'], 'dataset': config['dataset'],
+            'parameters': dict(zip(config['hyper_parameters'], hyper_tuple)),
+            'best_epoch': getattr(trainer, 'best_epoch', None),
+            'valid': best_valid_result, 'test': best_test_upon_valid})
+        if config['result_file']:
+            result_path = Path(config['result_file'])
+            result_path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = result_path.with_suffix('.tmp')
+            temporary.write_text(json.dumps(run_records, indent=2), encoding='utf-8')
+            temporary.replace(result_path)
 
         # Select hyperparameters using validation only.
         improved = (best_valid_score > best_valid_value if config['valid_metric_bigger']

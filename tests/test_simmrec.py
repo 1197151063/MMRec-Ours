@@ -170,6 +170,25 @@ class SIMMRecTest(unittest.TestCase):
             self.assertEqual(len(list((workspace / 'csv').glob('*.csv'))) - csv_before, expected_runs)
 
 
+        # Night queue: real subprocesses, structured summaries and no-save resume.
+        night = workspace / 'night'
+        command = [sys.executable, str(root / 'experiments/run_night.py'),
+                   '--data-path', str(workspace / 'data'), '--dataset', 'baby', '--cpu',
+                   '--epochs', '1', '--limit', '2', '--hours', '0.1', '--output', str(night)]
+        import json
+        for repeat in range(2):
+            result = subprocess.run(command, capture_output=True, text=True, timeout=120)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            summary = json.loads((night / 'summary.json').read_text())
+            self.assertEqual([row['state'] for row in summary], ['complete', 'complete'])
+            self.assertTrue(all('valid_recall@20' in row for row in summary))
+            if repeat == 0:
+                first_status = [(night / row['name'] / 'status.json').stat().st_mtime_ns for row in summary]
+            else:
+                self.assertEqual(first_status, [(night / row['name'] / 'status.json').stat().st_mtime_ns for row in summary])
+        self.assertFalse(list(night.rglob('*.pth')))
+
+
 
 if __name__ == '__main__':
     unittest.main()

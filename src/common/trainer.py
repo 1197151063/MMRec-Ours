@@ -356,6 +356,7 @@ class Trainer(AbstractTrainer):
                     update_output = '██ ' + self.config['model'] + '--Best validation results updated!!!'
                     if verbose:
                         self.logger.info(update_output)
+                    self.best_epoch = epoch_idx + 1
                     self.best_valid_result = valid_result
                     self.best_test_upon_valid = test_result
                     if checkpoint_path:

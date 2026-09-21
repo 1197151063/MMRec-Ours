@@ -204,3 +204,9 @@ First check `original/both` against the historical PE result and `none` against 
 If historical performance is not reproduced, resolve configuration/data/code differences
 before explaining other grid results. Compare validation-selected test scores; repeat
 promising/contradictory findings across training seeds and independent order seeds.
+
+## Overnight experiments
+
+The [overnight experiment guide](experiments/README.md) provides a 50-configuration,
+12-hypothesis queue with time budgets, isolated logs, failure handling, resume support,
+and machine-readable validation-selected results. No model files are saved.

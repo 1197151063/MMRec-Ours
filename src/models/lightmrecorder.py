@@ -30,8 +30,19 @@ def make_positions(train, uid, iid, n_users, n_items, source, seed):
     rng = np.random.default_rng(seed)
     if source == 'original':
         return np.arange(n_users), np.arange(n_items)
-    if source == 'random':
-        return rng.permutation(n_users), rng.permutation(n_items)
+    if source in ('random', 'random_user', 'random_item'):
+        users = rng.permutation(n_users) if source != 'random_item' else np.arange(n_users)
+        items = rng.permutation(n_items) if source != 'random_user' else np.arange(n_items)
+        return users, items
+    if source == 'train_degree':
+        def degree_order(values, size):
+            count = np.bincount(np.asarray(values, dtype=np.int64), minlength=size)
+            tie = rng.permutation(size)
+            order = tie[np.argsort(-count[tie], kind='stable')]
+            positions = np.empty(size, dtype=np.int64)
+            positions[order] = np.arange(size)
+            return positions
+        return degree_order(train[uid], n_users), degree_order(train[iid], n_items)
     if source not in ('train_file', 'train_shuffled'):
         raise ValueError('Unknown order_source: ' + source)
     if source == 'train_shuffled':
@@ -63,8 +74,27 @@ class LightMRecOrder(LightMRecNoPE):
         uid, iid = self.USER_ID, self.ITEM_ID
         users, items = make_positions(train, uid, iid, self.n_users, self.n_items,
                                       config['order_source'], int(config['order_seed']))
-        self.register_buffer('user_pe', sinusoidal(users, config['embedding_size']))
-        self.register_buffer('item_pe', sinusoidal(items, config['embedding_size']))
+        def option(key, default):
+            return config[key] if key in config and config[key] is not None else default
+        self.pe_scale = float(option('pe_scale', 1.0))
+        self.eval_cosine = bool(option('eval_cosine', False))
+        if option('freeze_features', False):
+            self.image_embedding.weight.requires_grad_(False)
+            self.text_embedding.weight.requires_grad_(False)
+        dim = config['embedding_size']
+        kind = option('pe_kind', 'sinusoidal')
+        rng = np.random.default_rng(int(config['order_seed']))
+        def encode(positions, offset):
+            if kind == 'sinusoidal':
+                return sinusoidal(np.asarray(positions) + offset, dim)
+            if kind == 'gaussian':
+                values = torch.from_numpy(rng.standard_normal((len(positions), dim)).astype(np.float32))
+                return torch.nn.functional.normalize(values, dim=-1) * math.sqrt(dim / 2)
+            if kind == 'constant':
+                return sinusoidal(np.zeros(len(positions)), dim)
+            raise ValueError('Unknown pe_kind: ' + kind)
+        self.register_buffer('user_pe', encode(users, 0))
+        self.register_buffer('item_pe', encode(items, int(option('item_pe_offset', 0))))
         digest = lambda x: hashlib.sha256(np.asarray(x, dtype='<i8').tobytes()).hexdigest()[:16]
         logging.getLogger().info(
             'ORDER AUDIT source=%s side=%s order_seed=%s user_map=%s item_map=%s '
@@ -76,7 +106,15 @@ class LightMRecOrder(LightMRecNoPE):
     def forward(self):
         user, item = super().forward()
         if self.pe_side in ('user', 'both'):
-            user = user + self.user_pe
+            user = user + self.pe_scale * self.user_pe
         if self.pe_side in ('item', 'both'):
-            item = item + self.item_pe
+            item = item + self.pe_scale * self.item_pe
         return user, item
+
+    def full_sort_predict(self, interaction):
+        users = interaction[0] if isinstance(interaction, (list, tuple)) else interaction
+        user, item = self.forward()
+        if self.eval_cosine:
+            user = torch.nn.functional.normalize(user, dim=-1)
+            item = torch.nn.functional.normalize(item, dim=-1)
+        return user[users] @ item.T
