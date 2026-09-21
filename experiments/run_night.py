@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 import csv
+from collections import deque
 
 from night_plan import build_plan
 
@@ -55,8 +56,9 @@ def main():
     parser.add_argument('--output', default='night_runs/baby-order-audit')
     parser.add_argument('--cpu', action='store_true')
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--max-consecutive-failures', type=int, default=3)
     args = parser.parse_args()
-    if args.hours <= 0 or args.job_minutes <= 0 or args.epochs <= 0 or (args.limit is not None and args.limit < 1):
+    if args.hours <= 0 or args.job_minutes <= 0 or args.epochs <= 0 or args.max_consecutive_failures < 1 or (args.limit is not None and args.limit < 1):
         parser.error('Budgets, epochs and limit must be positive')
     jobs = build_plan(args.seeds)
     if args.limit:
@@ -93,6 +95,8 @@ def main():
     deadline = time.monotonic() + args.hours * 3600
     import yaml
     summarize(output, jobs)
+    print(f'Python: {sys.executable} ({sys.version.split()[0]}); data: {data}', flush=True)
+    consecutive_failures = 0
     for index, job in enumerate(jobs, 1):
         if time.monotonic() >= deadline:
             break
@@ -130,9 +134,21 @@ def main():
             write_json(status, dict(state='interrupted', seconds=time.monotonic()-start))
             summarize(output, jobs)
             raise
-        write_json(status, dict(state=state, returncode=returncode, seconds=round(time.monotonic()-start, 2)))
+        error_tail = ''
+        if state != 'complete':
+            with (folder / 'console.log').open(errors='replace') as stream:
+                error_tail = ''.join(deque(stream, maxlen=35))
+            print(f'  Error log: {folder / "console.log"}\n{error_tail}', flush=True)
+            consecutive_failures += 1
+        else:
+            consecutive_failures = 0
+        write_json(status, dict(state=state, returncode=returncode,
+                                seconds=round(time.monotonic()-start, 2), error_tail=error_tail))
         summarize(output, jobs)
         print(f'  {state}; summary: {output / "summary.csv"}', flush=True)
+        if consecutive_failures >= args.max_consecutive_failures:
+            print('Stopping after consecutive failures. Fix the shared error before restarting.', flush=True)
+            raise SystemExit(1)
     summarize(output, jobs)
 
 

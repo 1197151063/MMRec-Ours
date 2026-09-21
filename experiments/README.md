@@ -14,6 +14,8 @@ Default: 50 predeclared configurations, training seed 999, 1000 epoch ceiling,
 45 minute per-job timeout, sequential GPU use, 8-hour total budget. No checkpoints.
 This is a queue budget, **not a promise that all 50 finish in eight hours**.
 An active job is terminated if its timeout or the total budget is exhausted.
+Failed jobs print their last 35 log lines and exit code is recorded. The queue stops after
+3 consecutive failures/timeouts (`--max-consecutive-failures` adjusts this threshold).
 Successful jobs are skipped when rerunning the exact same command. Failed/timed-out
 jobs retry from the beginning; there are intentionally no optimizer checkpoints.
 To extend time, use the same output directory and e.g. `--hours 12 --job-minutes 90`.
