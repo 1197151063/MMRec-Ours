@@ -177,3 +177,86 @@ tail -n 30 baby-profile-1.log
 
 Return `summary.csv`, `summary.json`, `manifest.json`, and the sibling `baby-profile-1-neighbors.json`.
 For failed jobs include their `console.log`. Do not infer model quality from unfinished jobs.
+
+## Correlated initialization and components (109 jobs per seed)
+
+```bash
+nohup bash experiments/run_corr.sh /root/autodl-tmp/MMRec-Ours/data 0 night_runs/baby-corr-1 48 baby > baby-corr-1.log 2>&1 &
+```
+
+Default is training seed 999, 109 configurations, 48-hour queue budget, 45-minute/job cap,
+1000-epoch maximum, validation early stopping, no checkpoints. Existing queue resume semantics
+apply. For three interleaved seeds (327 jobs), invoke `run_night.py --suite corr --seeds 999 2024
+2025 --hours 96 --data-path ... --output night_runs/baby-corr-3seed` instead. Keep output names
+separate and avoid simultaneous queues on one GPU. Real runtime depends on graph construction.
+
+### Initializer
+
+CorrRec starts from LightMRecNoPE (original MLP/BatchNorm, trainable raw features, raw-dot scoring,
+unfiltered sampled negatives, decoupled contrastive objective). Only the user table is replaced:
+
+`e[u] = std * (sqrt(1-rho) * epsilon[position[u]] + sqrt(rho) * z[position[u]])`
+
+In implementation the complete mixed process is built in position order, then assigned to users;
+therefore epsilon rows co-permute with z in the random-order control. With independent Gaussian
+innovations delta: `z[0]=delta[0]`, `z[p]=eta*z[p-1]+sqrt(1-eta^2)*delta[p]`.
+Each coordinate has marginal variance std² and lag-k covariance std²*rho*eta^k (k>0).
+No rowwise normalization or post-hoc sample centering is applied. rho=0 is IID. All generation
+uses a local RNG, not training/dropout/sampler RNG. Initializer seed is training seed + 1027;
+order shuffle seed is 2026. Multiple training seeds also vary the process realization.
+
+Shared-noise controls implement the literal epsilon-reused formula. Their marginal variance
+is NOT std²: away from the first row it is multiplied by
+`1+2*sqrt(rho*(1-rho))*sqrt(1-eta^2)`; the first row uses factor
+`1+2*sqrt(rho*(1-rho))`. Treat these as separate controls, not matched-variance estimates.
+Original numeric ordering remains an explicit experimental dependency, even though it is used
+only at initialization. A successful run does not make the method invariant to ID remapping.
+
+### Queue order and components
+
+First 6 jobs: unchanged Xavier no-PE reference; IID Gaussian std .01/.1/sqrt(.5); correlated
+anchor rho=.75, eta=.99, std=sqrt(.5) in original and random user order.
+Next 30 jobs: 10 component settings, each with original correlated, random-order correlated,
+and IID at the same std. Components are:
+
+1. modality-specific SSM auxiliary weight .01;
+2. modality-specific SSM auxiliary weight .1;
+3. BPR primary loss;
+4. BPR + modality SSM .1;
+5. item-ID residual weight .1;
+6. one user-item propagation layer, mean including layer zero;
+7. semantic item KNN residual .1;
+8. semantic KNN / finite PPR mixture residual .1;
+9. user dropout .1 before normalized SSM;
+10. combined item-ID 1 + UI layer 1 + item graph 1 + BPR + auxiliary .1 + L2 .0001.
+
+Remaining 70 grid jobs cover rho=.25/.75/1 × eta=.5/.9/.99/.999 × std=.01/.1/sqrt(.5)
+× original/random ordering, excluding the two anchor jobs. Final 3 controls reuse epsilon at
+eta=.5/.9/.99. Hyperparameters are predeclared; select by validation, not by the test metric.
+Shared-noise controls and combined models should be reported separately from one-factor effects.
+
+### Adaptation details versus supplied FREEDOM snippet
+
+This is a component adaptation onto the content baseline, not an exact FREEDOM reproduction.
+The content MLP stays in the scoring path; optional IDs are additive. There is one shared forward
+per loss evaluation. SSM uses stable logsumexp; BPR averages over sampled negatives. Auxiliary
+text/image losses share the same candidates, with visual weight 1. The inherited sampler can draw
+known positives as negatives, deliberately retaining the original protocol for these ablations.
+Adam uses explicit zero weight decay; optional sampled embedding L2 is active. The snippet's
+AdamW default weight decay and commented-out L2 are not silently carried over.
+
+Semantic KNN uses initial detached raw features, normalized cosine, binary positive edges,
+visual/text mixture .1/.9, k=10, no self-neighbors. Cosines are computed in 256-row blocks.
+PPR uses TRAIN binary interactions, alpha=.15 as propagation probability, restart .85, 20 finite
+iterations, no transition-diagonal renormalization. Exact finite-polynomial rows are computed
+in blocks of 128 and top-k is applied at the end. Unlike the snippet, the final self diagonal
+is removed, so top-k counts other items. Mixture is .9 semantic + .1 PPR where enabled.
+The resulting graph is explicitly symmetrized and degree-normalized. No complete dense I×I
+array is constructed. The sparse item transition can still become large on dense datasets;
+blockwise dense workspace does not imply overall linear sparse-graph memory. No torch_sparse
+or new library dependency is required. Graphs are built once per job and reused in forward.
+
+All early-stopping/best-test reporting stays tied to the best validation epoch. The reference
+snippet updates `best_result` directly using test metrics; that selection behavior is excluded.
+Graph/auxiliary/ID components add computation or parameters and must not be called structure-free.
+Return summary.csv, summary.json and manifest.json; add console.log for failed jobs.
