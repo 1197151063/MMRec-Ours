@@ -77,6 +77,11 @@ class LightMRecOrder(LightMRecNoPE):
         def option(key, default):
             return config[key] if key in config and config[key] is not None else default
         self.pe_scale = float(option('pe_scale', 1.0))
+        self.pe_application = option('pe_application', 'forward')
+        if self.pe_application not in ('forward', 'init'):
+            raise ValueError('pe_application must be forward or init')
+        if self.pe_application == 'init' and self.pe_side != 'user':
+            raise ValueError('Initialization equivalence is restricted to user-only PE')
         self.eval_cosine = bool(option('eval_cosine', False))
         if option('freeze_features', False):
             self.image_embedding.weight.requires_grad_(False)
@@ -95,6 +100,9 @@ class LightMRecOrder(LightMRecNoPE):
             raise ValueError('Unknown pe_kind: ' + kind)
         self.register_buffer('user_pe', encode(users, 0))
         self.register_buffer('item_pe', encode(items, int(option('item_pe_offset', 0))))
+        if self.pe_application == 'init':
+            with torch.no_grad():
+                self.user_embedding.weight.add_(self.pe_scale * self.user_pe.to(self.user_embedding.weight.device))
         digest = lambda x: hashlib.sha256(np.asarray(x, dtype='<i8').tobytes()).hexdigest()[:16]
         logging.getLogger().info(
             'ORDER AUDIT source=%s side=%s order_seed=%s user_map=%s item_map=%s '
@@ -105,7 +113,7 @@ class LightMRecOrder(LightMRecNoPE):
 
     def forward(self):
         user, item = super().forward()
-        if self.pe_side in ('user', 'both'):
+        if self.pe_side in ('user', 'both') and self.pe_application == 'forward':
             user = user + self.pe_scale * self.user_pe
         if self.pe_side in ('item', 'both'):
             item = item + self.pe_scale * self.item_pe

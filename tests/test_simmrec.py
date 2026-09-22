@@ -187,6 +187,24 @@ class SIMMRecTest(unittest.TestCase):
             else:
                 self.assertEqual(first_status, [(night / row['name'] / 'status.json').stat().st_mtime_ns for row in summary])
         self.assertFalse(list(night.rglob('*.pth')))
+        init_night = workspace / 'init-night'
+        command = [sys.executable, str(root / 'experiments/run_night.py'),
+                   '--suite', 'init', '--data-path', str(workspace / 'data'), '--cpu',
+                   '--epochs', '1', '--hours', '0.1', '--output', str(init_night)]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=180)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        summary = json.loads((init_night / 'summary.json').read_text())
+        self.assertEqual(len(summary), 11)
+        self.assertTrue(all(row['state'] == 'complete' for row in summary), summary)
+        self.assertFalse(list(init_night.rglob('*.pth')))
+        sys.path.insert(0, str(root / 'experiments'))
+        from diagnose_user_neighbors import diagnose
+        initial = diagnose(workspace / 'data', 'baby', pairs=100)
+        self.assertEqual(initial['results']['adjacent']['mean_jaccard'], 0.)
+        # Held-out rows cannot affect the training-only diagnostic.
+        (data / 'baby.inter').write_text((data / 'baby.inter').read_text() + '999\t999\t2\n')
+        self.assertEqual(initial, diagnose(workspace / 'data', 'baby', pairs=100))
+
 
 
 

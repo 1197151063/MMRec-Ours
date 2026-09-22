@@ -89,3 +89,38 @@ content axes, so H6 alone does not isolate the user/item cross-term.
 Do not use PE-dependent gains as evidence of stronger semantic learning. Select
 hyperparameters on validation, report matched-seed results, and validate any mechanism
 across datasets before revising the paper's claims. No accuracy improvement is promised.
+
+## Minimal user initialization suite (11 configurations)
+
+```bash
+nohup bash experiments/run_init.sh /root/autodl-tmp/MMRec-Ours/data 0 night_runs/baby-init-1 > baby-init-1.log 2>&1 &
+```
+
+First computes training-only adjacency statistics (numeric user neighbors, random partners,
+log2-degree-matched partners) with shared anchors, binary-history Jaccard, popularity-downweighted
+Jaccard and normalized visual/text history cosine. Writes `night_runs/baby-init-1-neighbors.json`.
+Sampled pairs repeat users: descriptive means are not significance tests. Existing numeric IDs
+and file provenance remain a confound; this diagnostic does not establish legitimate ordering.
+
+Then runs `--suite init`: three original-family mechanism controls (no PE, user PE in forward,
+user PE only at initialization), plus eight clean SIMMInit variants. Clean models freeze content,
+use one linear projector per modality, alpha=0.75, tau=0.2, 128 negatives, L2=0.0001, no item ID.
+Variants: unchanged user initialization; added unit random user directions at strengths 0.1/1;
+training-history random-item-code averages at 0.1/1; initial projected-content history averages
+at 0.1/1; random reassignment of the interaction-derived directions at strength 1. Histories are
+binary, training-only; missing history gives zero direction. No history aggregator persists
+in forward/inference, no extra loss is introduced. Initializer seed 2026 is independent of training
+RNG; the random item code table is discarded. Entity relabeling tests must permute these codes
+with their entities; regenerating codes by numeric row under the same seed is not that test.
+The mismatch control uses a random permutation, which can retain a few fixed points.
+
+Original user-PE initialization still uses arbitrary user IDs and is a diagnostic, not the proposed
+order-free method. Algebraic equivalence assumes the unchanged original loss and no user weight
+decay/regularizer; finite precision can cause trajectories to diverge (Adam can amplify nearly-zero BatchNorm bias gradient differences). The algebraic test uses float64; full server runs measure float32 behavior rather than assuming identical results. The clean-family L2
+regularizes the final user parameter after initialization, not its displacement from initialization.
+Feature preprocessing and one-time initialization add training startup work, not inference work.
+
+Queue timeout/resume/no-save behavior is unchanged. For three training seeds use `run_night.py
+--suite init --seeds 999 2024 2025 ...` with a new output directory (33 configurations).
+Return the neighbor JSON, manifest.json and summary.csv. Success means beating matched-strength
+random controls, not merely beating the unchanged initializer. Select by validation only.

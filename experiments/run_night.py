@@ -47,6 +47,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-path', required=True)
     parser.add_argument('--dataset', default='baby')
+    parser.add_argument('--suite', choices=['order', 'init'], default='order')
     parser.add_argument('--gpu-id', type=int, default=0)
     parser.add_argument('--hours', type=float, default=8)
     parser.add_argument('--job-minutes', type=float, default=45)
@@ -60,7 +61,11 @@ def main():
     args = parser.parse_args()
     if args.hours <= 0 or args.job_minutes <= 0 or args.epochs <= 0 or args.max_consecutive_failures < 1 or (args.limit is not None and args.limit < 1):
         parser.error('Budgets, epochs and limit must be positive')
-    jobs = build_plan(args.seeds)
+    if args.suite == 'init':
+        from init_plan import build_plan as selected_plan
+    else:
+        selected_plan = build_plan
+    jobs = selected_plan(args.seeds)
     if args.limit:
         jobs = jobs[:args.limit]
     output = Path(args.output).resolve()

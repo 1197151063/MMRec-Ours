@@ -1,0 +1,16 @@
+# Frozen content; one-time training-history user initialization.
+embedding_size: 64
+alpha: [0.75]
+item_id_weight: [0.0]
+temperature: [0.2]
+num_negatives: [128]
+reg_weight: [0.0001]
+learning_rate: 0.001
+use_neg_sampling: False
+# Training-set reconstruction Recall is not a directly comparable generalization gap.
+evaluate_train: False
+hyper_parameters: [alpha, item_id_weight, temperature, num_negatives, reg_weight, user_init, init_strength, init_seed]
+# No additional forward modules or objectives.
+user_init: [none]
+init_strength: [0.0]
+init_seed: [2026]
