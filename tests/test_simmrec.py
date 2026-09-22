@@ -197,6 +197,17 @@ class SIMMRecTest(unittest.TestCase):
         self.assertEqual(len(summary), 11)
         self.assertTrue(all(row['state'] == 'complete' for row in summary), summary)
         self.assertFalse(list(init_night.rglob('*.pth')))
+        profile_night = workspace / 'profile-night'
+        command = [sys.executable, str(root / 'experiments/run_night.py'),
+                   '--suite', 'profile', '--data-path', str(workspace / 'data'), '--cpu',
+                   '--epochs', '1', '--limit', '12', '--hours', '0.1', '--output', str(profile_night)]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=180)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        summary = json.loads((profile_night / 'summary.json').read_text())
+        self.assertEqual(len(summary), 12)
+        self.assertTrue(all(row['state'] == 'complete' for row in summary), summary)
+        self.assertFalse(list(profile_night.rglob('*.pth')))
+
         sys.path.insert(0, str(root / 'experiments'))
         from diagnose_user_neighbors import diagnose
         initial = diagnose(workspace / 'data', 'baby', pairs=100)

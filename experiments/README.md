@@ -124,3 +124,56 @@ Queue timeout/resume/no-save behavior is unchanged. For three training seeds use
 --suite init --seeds 999 2024 2025 ...` with a new output directory (33 configurations).
 Return the neighbor JSON, manifest.json and summary.csv. Success means beating matched-strength
 random controls, not merely beating the unchanged initializer. Select by validation only.
+
+## Persistent shared history profiles (70 configurations × 3 seeds)
+
+```bash
+nohup bash experiments/run_profile.sh /root/autodl-tmp/MMRec-Ours/data 0 night_runs/baby-profile-1 48 baby > baby-profile-1.log 2>&1 &
+```
+
+The wrapper recomputes neighbor diagnostics and runs 210 jobs sequentially, with a 48-hour
+queue budget, 45-minute per-job cap, 1000-epoch maximum and existing validation early stopping.
+No checkpoints are saved. Runtime is not guaranteed: pending/timed-out jobs can be resumed
+with exactly the same command and unchanged source. Completed jobs are skipped. Never run two
+queues on the same output directory. Use a new output directory after changing source/configs.
+For Sports/Clothing pass the corresponding dataset name and a distinct output directory;
+run sequentially on a single GPU. To screen one seed use `run_night.py --suite profile --seeds 999 ...`.
+
+SIMMProfile precomputes each user's weighted mean of frozen, normalized raw modality features
+from binary TRAIN interactions. It reuses the item's two linear projectors to produce a user
+history representation on every update. The representation is normalized and added to the
+learnable user vector with fixed weight beta. No added trainable parameters, no item IDs,
+no arbitrary numeric-order encoding, no iterative graph propagation, no auxiliary loss.
+This is explicit history aggregation and must be described as such; it is not structure-free.
+There is additional startup work, U×(visual_dim+text_dim) buffer storage, and per-batch user
+projection work. At evaluation, projected user/item representations use the existing cache.
+
+Training removes the current positive item from the history mean (leave one out), including
+its contribution to the denominator. All negatives in that row share the same resulting user
+representation. Empty histories yield zero profile. Validation/test use full TRAIN history only.
+Shuffled controls reassign histories across users; removal is conditional on the target actually
+being present in the reassigned history. These random mappings must co-permute in relabel tests.
+The no-user-ID variant freezes and ignores the lookup, leaving only shared projector learning.
+
+| Block | Configs per seed | Purpose |
+| --- | ---: | --- |
+| Priority controls | 12 | beta=0 baseline; own/shuffled beta=.1/.3/1/3; no user ID; detached history gradient; target-included diagnostic |
+| Matched search | 44 | tau=.1/.2/.3/.5, alpha=.5/.75/1, beta=0/.3/1/3; excludes 4 previously covered settings |
+| Popularity weighting | 6 | train item degree exponent .5/1 × beta=.3/1/3 |
+| Residual regularization | 8 | reg=0/.001 × beta=0/.3/1/3 |
+
+Seeds 999/2024/2025 are interleaved per configuration; the first 36 jobs cover all priority
+controls. Select by mean validation Recall@20 across completed seeds, never best test result.
+The target-included run is a shortcut diagnostic and excluded from candidate selection.
+Tune the no-history baseline under the same temperature/fusion/regularization ranges before
+claiming a profile gain. Random controls have fixed profile_seed=2026 across training seeds;
+this checks optimization variability, not robustness across shuffle realizations. Wide search
+can overfit validation; independently validate a locked choice on other datasets/seeds.
+
+```bash
+python experiments/review_profile.py night_runs/baby-profile-1 > night_runs/baby-profile-1/review.json
+tail -n 30 baby-profile-1.log
+```
+
+Return `summary.csv`, `summary.json`, `manifest.json`, and the sibling `baby-profile-1-neighbors.json`.
+For failed jobs include their `console.log`. Do not infer model quality from unfinished jobs.

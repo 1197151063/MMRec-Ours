@@ -1,0 +1,17 @@
+embedding_size: 64
+alpha: [0.75]
+item_id_weight: [0.0]
+temperature: [0.2]
+num_negatives: [128]
+reg_weight: [0.0001]
+learning_rate: 0.001
+use_neg_sampling: False
+evaluate_train: False
+profile_weight: [1.0]
+profile_mode: [own]
+history_power: [0.0]
+leave_one_out: [True]
+use_user_id: [True]
+detach_profile: [False]
+profile_seed: [2026]
+hyper_parameters: [alpha, item_id_weight, temperature, num_negatives, reg_weight, profile_weight, profile_mode, history_power, leave_one_out, use_user_id, detach_profile, profile_seed]
