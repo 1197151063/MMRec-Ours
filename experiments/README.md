@@ -422,3 +422,8 @@ no checkpoints. Resume by the same command with unchanged source. Old queues are
 Return summary.csv, summary.json and manifest.json, plus console.log for failures. Logs include
 neighbor coverage and unscaled component losses every200 batches. Runtime and accuracy on real
 data are not established by local CPU synthetic tests.
+
+## 完整 REARM 官方基线（当前阶段）
+
+停止在 RelationRec 上叠加组件，先运行固定官方源码和论文配置。
+详见 [REARM_BASELINE.md](REARM_BASELINE.md)，含数据/协议说明、运行和日志查看命令。

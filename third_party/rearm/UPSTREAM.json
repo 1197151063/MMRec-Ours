@@ -1,0 +1,18 @@
+{
+  "url": "https://github.com/MrShouxingMa/REARM",
+  "revision": "3038f1ac3b7a957f140550bfecd34b09688a689b",
+  "files": {
+    "environment_build.yml": "160830c5083199bf8fc32f84412c688e78fb864540734a8e982b4377769469c2",
+    "model.py": "ee30cbc46f2dca80d99c4d3d886e1391aad215a9afc8643d63259d2628841c37",
+    "README.md": "99b39d784ee941de15c1aa9f7ae4fc593e2bb23052f001d7f855c0c5c9d52241",
+    "trainer.py": "ee2073905e7389af73f34b136fe5940e5c364be2f3d8b3e399cd39cb20d3107d",
+    "main.py": "881d89251ddc8989867b11d918feb3690f4d4ff44a2753134df869b2134651a3",
+    "utils/metrics.py": "4412b12a2da6bc10cc7fdcc4e712420ef5b68045c8caddba38f68aef33551f71",
+    "utils/data_loader.py": "818881ab163b9a68ab5b9a8be81cddacd89f5c6193679f16fdb83c9c74a5cd4c",
+    "utils/logger.py": "99882823f0e0d3452ad62579ca32bac5d68615a97e87a6b55d2c49481672ca30",
+    "utils/parser.py": "6bd22be0659b504769ae56c1c9526e29cc559c00788e1f50ccaa78b019586d7d",
+    "utils/helper.py": "c568fb034c61895caf0266a2e6283db0d786769188dfc037377ddf3f601e7751",
+    "utils/configurator.py": "0e0928245f18bee491f4d8ae9dd95c5c4deea19fe299d331db364152c5aeef6b",
+    "utils/evaluator.py": "9acfe20b681554cb9281985a3eb238a77e2eee9c1c121bfd5dbb997272331fc8"
+  }
+}

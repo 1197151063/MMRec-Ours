@@ -1,0 +1,6 @@
+# Use the existing PyTorch environment. Official environment is also vendored.
+numpy
+scipy
+matplotlib
+tqdm
+tensorboardX
