@@ -19,6 +19,12 @@ class GroupTest(unittest.TestCase):
                            group_std=.125,group_trainable=True,use_personal=True,group_seed=2026)
 
     def test_group_sizes_and_rng(self):
+        for count in (32,64,128):
+            groups=user_groups(1000,count,'contiguous',20)
+            self.assertEqual(groups.unique().numel(),count)
+            self.assertTrue((groups[1:] >= groups[:-1]).all())
+            sizes=torch.bincount(groups)
+            self.assertLessEqual(int(sizes.max()-sizes.min()),1)
         self.assertEqual(user_groups(100,16,'contiguous',20).unique().numel(),16)
         counts=torch.bincount(user_groups(100,16,'contiguous',20))
         self.assertLessEqual(int(counts.max()-counts.min()),1)
@@ -77,10 +83,12 @@ class GroupTest(unittest.TestCase):
         self.assertEqual(model.text_trs.out_features,64)
         self.assertFalse(any(isinstance(m,(torch.nn.BatchNorm1d,torch.nn.Dropout)) for m in model.modules()))
         plan=build_plan()
-        self.assertEqual(len(plan),1)
-        self.assertEqual(len({j['name'] for j in plan}),1)
+        self.assertEqual(len(plan),3)
+        self.assertEqual(len({j['name'] for j in plan}),3)
         self.assertTrue(all(not any(k.startswith('group_init') or k == 'group_std' for k in j['overrides']) for j in plan))
-        self.assertEqual(plan[0]['overrides']['num_groups'],16)
+        self.assertEqual([j['overrides']['num_groups'] for j in plan],[32,64,128])
+        controls=[{k:v for k,v in j['overrides'].items() if k != 'num_groups'} for j in plan]
+        self.assertTrue(all(c == controls[0] for c in controls))
         self.assertEqual(plan[0]['overrides']['group_mode'],'contiguous')
         self.assertEqual(model.n_layers,2)
         self.assertEqual(model.ui_adj._nnz(),12)
@@ -110,6 +118,6 @@ class GroupTest(unittest.TestCase):
             capture_output=True,text=True,timeout=240)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         summary=json.loads((output/'summary.json').read_text())
-        self.assertEqual(len(summary),1)
+        self.assertEqual(len(summary),3)
         self.assertTrue(all(r['state']=='complete' for r in summary),summary)
         self.assertFalse(list(output.rglob('*.pth')))

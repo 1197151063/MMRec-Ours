@@ -261,17 +261,19 @@ snippet updates `best_result` directly using test metrics; that selection behavi
 Graph/auxiliary/ID components add computation or parameters and must not be called structure-free.
 Return summary.csv, summary.json and manifest.json; add console.log for failed jobs.
 
-## Fixed total of 16 user groups with two-layer LightGCN and BPR
+## Group-count sensitivity with two-layer LightGCN and BPR
 
 ```bash
-nohup bash experiments/run_group.sh /root/autodl-tmp/MMRec-Ours/data 0 night_runs/baby-16groups-lgcn-bpr-1 2 baby > baby-16groups-lgcn-bpr-1.log 2>&1 &
+nohup bash experiments/run_group.sh /root/autodl-tmp/MMRec-Ours/data 0 night_runs/baby-group-count-1 6 baby > baby-group-count-1.log 2>&1 &
 ```
 
-The default queue runs ONE configuration, seed999, a total of 16 contiguous user groups,
-group strength1. Membership is floor(user_id * 16 / n_users), giving balanced group sizes
-that differ by at most one when all numeric user IDs are present. The table always has 16
-rows; tiny synthetic datasets with fewer than 16 users necessarily leave some groups empty.
-No random grouping experiments or group-count sweeps are run. Original numeric order remains an explicit input to grouping.
+The queue runs THREE configurations, seed999, with 32, 64 and 128 total contiguous user groups,
+group strength1. Membership is floor(user_id * num_groups / n_users), giving balanced group sizes
+that differ by at most one when all numeric user IDs are present. The table has num_groups rows; tiny synthetic datasets with fewer users than groups necessarily
+leave some groups empty. No random grouping experiments are run. Only num_groups changes
+between jobs; compare against the previously completed 16-group run. The standalone model
+default remains 16 groups. Group-vector RNG is local, so changing table size does not change
+personal/item initialization or training RNG. Original numeric order remains an explicit input to grouping.
 
 User/item ID embeddings (64-dimensional, Xavier initialization) are concatenated and propagated
 through two LightGCN layers on binary TRAIN interactions only. The adjacency is symmetric
@@ -287,6 +289,6 @@ Both modality SSM terms retain cosine normalization, tau=.04 and the negatives-o
 No new regularization, dropout or graph auxiliary loss is added. All terms reuse one graph forward.
 Inference uses grouped propagated users and propagated item IDs with raw-dot scoring.
 
-The queue retains validation-based early stopping, 1000-epoch maximum, 2-hour total budget,
+The queue retains validation-based early stopping, 1000-epoch maximum, 6-hour total budget,
 and no checkpoint saving. Use the new output directory above; old manifests are incompatible.
 Return summary.csv, summary.json and manifest.json. Local tests use synthetic data only.
