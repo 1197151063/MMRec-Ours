@@ -1,0 +1,23 @@
+embedding_size: 64
+# Image auxiliary loss weight; text weight is 1-alpha.
+alpha: [0.5]
+temperature: [0.04]
+num_negatives: [32]
+learning_rate: 0.001
+weight_decay: 0.0
+use_neg_sampling: False
+evaluate_train: False
+num_groups: [16]
+group_mode: [contiguous]
+group_strength: [1.0]
+group_init: [normal]
+group_std: [0.125]
+group_trainable: [True]
+use_personal: [True]
+group_seed: [2026]
+hyper_parameters: [alpha, temperature, num_negatives, num_groups, group_mode, group_strength, group_init, group_std, group_trainable, use_personal, group_seed, wbpr_mix, link_beta, link_gamma, link_delta]
+# Fixed LinkProp-inspired BPR weights; not paper-trained linkage parameters.
+wbpr_mix: [0.5]
+link_beta: [0.5]
+link_gamma: [0.5]
+link_delta: [0.5]

@@ -292,3 +292,46 @@ Inference uses grouped propagated users and propagated item IDs with raw-dot sco
 The queue retains validation-based early stopping, 1000-epoch maximum, 6-hour total budget,
 and no checkpoint saving. Use the new output directory above; old manifests are incompatible.
 Return summary.csv, summary.json and manifest.json. Local tests use synthetic data only.
+
+## LinkProp-inspired weighted BPR (three runs)
+
+Source: Fu et al., *Revisiting Neighborhood-based Link Prediction for Collaborative Filtering*,
+arXiv:2203.15789v1, §3.1 Eqs.11–15, §3.3. The paper proposes degree-aware three-hop link scores
+and directly searches parameters using validation NDCG. It does NOT propose the weighted BPR
+objective below. This experiment is an adaptation, not a reproduction of LinkProp/LinkProp-Multi.
+
+For each observed binary TRAIN edge (u,i), compute structural support:
+
+`q_ui = sum_{x != i, v != u} R_ux R_vx R_vi / (d_x^beta d_v^gamma d_i^delta)`.
+
+We fix beta=gamma=delta=.5, and the focal user exponent to zero, following the score form of
+Eq.12. These are experimental choices, not the paper's tuned optimum. All degrees are fixed on
+the full binary TRAIN graph. We remove walks that reuse the scored edge (x=i or v=u), so an
+observed edge does not support itself via a trivial backtrack. This is not a full leave-one-edge-out
+recomputation of degrees. No validation/test edges or scores enter these weights. No pseudo-links
+or iterative degree updates are added. Triples are computed in 32-user sparse row blocks and only
+observed-edge scores are retained, avoiding a full U×I score table. Dense interaction graphs can
+still create large intermediate sparse blocks; startup time is logged.
+
+Define `c_ui=1+log(1+q_ui)` and `w_ui=(1-lambda)+lambda*c_ui/mean_train_edges(c)`.
+The +1 keeps zero-support positives trainable. Weights are positive, have mean1 over unique
+training edges, and are fixed buffers without gradients. This normalization is global, not
+per minibatch. The hypothesis is that independently supported positives deserve greater BPR
+weight; this does not establish that they are less noisy or guarantee better rankings.
+
+`L = mean_{u,i,j}[w_ui * softplus(s_uj-s_ui)] + alpha*SSM_image + (1-alpha)*SSM_text`.
+
+Only BPR is weighted. Both modality SSM terms, their coefficients/temperature, the shared
+unfiltered 32-negative sampler, and inference are inherited unchanged. Keep 16 total contiguous
+user groups, two-layer LightGCN and all original default optimizer/initialization settings.
+The suite compares lambda=0/.5/1, seed999. Lambda0 skips support preprocessing and is exactly
+ordinary BPR. This queue is separate from the group-count sensitivity queue.
+
+```bash
+nohup bash experiments/run_wbpr.sh /root/autodl-tmp/MMRec-Ours/data 0 night_runs/baby-wbpr-1 6 baby > baby-wbpr-1.log 2>&1 &
+```
+
+Three runs, six-hour queue budget, existing validation early stopping, no model saving. Return
+summary.csv, summary.json and manifest.json; console.log includes weight statistics and startup
+time. Rank configs by validation, never by test. Local synthetic tests verify the weighted loss,
+its gradients, unchanged SSM/inference, and exact path enumeration; actual gains require server data.

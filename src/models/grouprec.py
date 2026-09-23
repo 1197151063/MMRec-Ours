@@ -91,6 +91,9 @@ class GroupRec(LightMRecNoPE):
         logits = (candidates * user[:, None]).sum(-1) / self.temperature
         return (torch.logsumexp(logits[:, 1:], dim=-1) - logits[:, 0]).mean()
 
+    def bpr_objective(self, users, positives, pos_scores, neg_scores):
+        return F.softplus(neg_scores - pos_scores[:, None]).mean()
+
     def calculate_loss(self, interaction):
         users, positives = interaction[0], interaction[1]
         user_table, item_table = self.forward()
@@ -99,7 +102,7 @@ class GroupRec(LightMRecNoPE):
         user = user_table[users]
         pos_scores = (user * item_table[positives]).sum(-1)
         neg_scores = (user[:, None] * item_table[negatives]).sum(-1)
-        loss = F.softplus(neg_scores - pos_scores[:, None]).mean()
+        loss = self.bpr_objective(users, positives, pos_scores, neg_scores)
         # Use the same sampled candidates for all three objectives. With linear
         # projectors, projecting unique sampled rows is exactly sufficient.
         unique, inverse = candidates.unique(return_inverse=True)

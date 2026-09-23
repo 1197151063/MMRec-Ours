@@ -113,7 +113,7 @@ class GroupTest(unittest.TestCase):
             lines.extend([f'{u}\t{((u+1)*8)%24}\t1',f'{u}\t{((u+1)*8+1)%24}\t2'])
         (data/'baby.inter').write_text('\n'.join(lines)+'\n')
         output=workspace/'group-queue'
-        result=subprocess.run([sys.executable,str(root/'experiments/run_night.py'),'--suite','group',
+        result=subprocess.run([sys.executable,str(root/'experiments/run_night.py'),'--suite',getattr(self,'suite','group'),
             '--data-path',str(data.parent),'--cpu','--epochs','1','--hours','.2','--output',str(output)],
             capture_output=True,text=True,timeout=240)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
