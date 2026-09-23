@@ -264,7 +264,7 @@ Return summary.csv, summary.json and manifest.json; add console.log for failed j
 ## User group preference module: five-run check
 
 ```bash
-nohup bash experiments/run_group.sh /root/autodl-tmp/MMRec-Ours/data 0 night_runs/baby-group-linear-1 2 baby > baby-group-linear-1.log 2>&1 &
+nohup bash experiments/run_group.sh /root/autodl-tmp/MMRec-Ours/data 0 night_runs/baby-group-id-1 2 baby > baby-group-id-1.log 2>&1 &
 ```
 
 The default suite now has five configurations, seed 999:
@@ -279,18 +279,25 @@ The default suite now has five configurations, seed 999:
 
 All runs use existing defaults: personal users retain the original Xavier initialization;
 new group vectors use the existing independent Normal(std=.125), with local group seed 2026.
-There is no initialization sweep, PE, correlated initializer, graph, auxiliary objective,
+There is no initialization sweep, PE, correlated initializer, graph,
 or historical-profile experiment in this queue. Both personal and group vectors are trainable.
-Both modality projectors are now single nn.Linear(input_dim, 64) layers, without BatchNorm, activation or dropout. Feature training, SSM loss and raw-dot scoring remain unchanged. All five configurations use these same linear projectors.
+Both modality projectors are now single nn.Linear(input_dim, 64) layers, without BatchNorm, activation or dropout. Raw feature tables remain trainable. Item IDs now have a trainable 64-dimensional Xavier-initialized embedding table.
+Loss is SSM(grouped user, item ID) + alpha*SSM(grouped user, projected image) +
+(1-alpha)*SSM(grouped user, projected text), with alpha=.5 now the IMAGE loss weight.
+All three terms use the same 32 sampled candidates, cosine normalization and tau=.04.
+The inherited unfiltered uniform negative sampling and decoupled SSM denominator remain.
+Projection uses unique sampled item rows; no BatchNorm/dropout is involved. Inference uses
+only grouped user vectors and item ID vectors, with raw-dot scoring. Modality projectors
+supply auxiliary training supervision and are not evaluated during inference. All five configurations use these same linear projectors.
 
 Every forward adds `group_embedding[u // group_size]` to the personal vector for contiguous
 groups. Random controls preserve exact group sizes, including the final partial group.
 Original numeric order is an explicit dependency. Group construction does not advance the
-training RNG. Strength zero reproduces the single-layer no-group baseline loss and gradients. Historical multi-layer baselines remain unchanged in their own models.
+training RNG. Strength zero is the no-group control under this same three-term objective. Historical multi-layer baselines remain unchanged in their own models.
 
 Default budget is 2 hours, with the existing 1000-epoch maximum and validation early stopping;
 we reduce the number of configurations rather than prematurely cutting training. No model
-checkpoints are saved. Use the new output directory above: previous group manifests are incompatible with this projector change.
+checkpoints are saved. Use the new output directory above: previous group manifests are incompatible with this item-ID/objective change.
 Existing queues are not automatically stopped. Resume unfinished runs with the same command
 and unchanged code. Return summary.csv, summary.json and manifest.json. Synthetic tests verify
 execution, not recommendation gains on the actual datasets.

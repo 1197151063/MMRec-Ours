@@ -1,4 +1,5 @@
 embedding_size: 64
+# Image auxiliary loss weight; text weight is 1-alpha.
 alpha: [0.5]
 temperature: [0.04]
 num_negatives: [32]

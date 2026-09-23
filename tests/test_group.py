@@ -12,11 +12,6 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'experiments'))
 from group_plan import build_plan
 
 
-class LinearReference(LightMRecNoPE):
-    def make_projectors(self, dim):
-        return torch.nn.Linear(self.v_feat.shape[1], dim), torch.nn.Linear(self.t_feat.shape[1], dim)
-
-
 class GroupTest(unittest.TestCase):
     def setUp(self):
         fixtures.SIMMRecTest.setUp(self)
@@ -32,20 +27,30 @@ class GroupTest(unittest.TestCase):
         torch.testing.assert_close(b,user_groups(11,3,'random',20))
         self.assertTrue(torch.equal(rng,torch.get_rng_state()))
 
-    def test_zero_strength_exact_baseline_and_rng(self):
-        torch.manual_seed(40); a=LinearReference(self.config,self.loader)
-        state=torch.get_rng_state().clone()
-        torch.manual_seed(40); b=GroupRec(dict(self.config,group_strength=0.),self.loader)
-        self.assertTrue(torch.equal(state,torch.get_rng_state()))
+    def test_three_losses_and_id_inference(self):
         batch=torch.tensor([[0,1,2],[0,2,4]])
-        torch.manual_seed(99);la=a.calculate_loss(batch)
-        torch.manual_seed(99);lb=b.calculate_loss(batch)
-        torch.testing.assert_close(la,lb,atol=0,rtol=0)
-        la.backward();lb.backward()
-        for name,p in a.named_parameters():
-            torch.testing.assert_close(p.grad,dict(b.named_parameters())[name].grad,atol=0,rtol=0)
-        self.assertIsNone(b.group_embedding.weight.grad)
-        torch.testing.assert_close(a.eval().full_sort_predict(torch.arange(3)),b.eval().full_sort_predict(torch.arange(3)))
+        for alpha in (0.,.25,1.):
+            model=GroupRec(dict(self.config,alpha=alpha,group_strength=0.),self.loader)
+            torch.manual_seed(99); actual=model.calculate_loss(batch)
+            torch.manual_seed(99)
+            negatives=torch.randint(24,(3,32))
+            ids=torch.cat((batch[1,:,None],negatives),dim=1)
+            users=torch.nn.functional.normalize(model.user_embedding(batch[0]),dim=-1)
+            def reference(table):
+                logits=(torch.nn.functional.normalize(table[ids],dim=-1)*users[:,None]).sum(-1)/model.temperature
+                return (torch.logsumexp(logits[:,1:],dim=-1)-logits[:,0]).mean()
+            expected=reference(model.item_embedding.weight)
+            expected=expected+alpha*reference(model.image_trs(model.image_embedding.weight))
+            expected=expected+(1-alpha)*reference(model.text_trs(model.text_embedding.weight))
+            torch.testing.assert_close(actual,expected)
+            actual.backward()
+            self.assertGreater(model.item_embedding.weight.grad.abs().sum(),0)
+            self.assertIsNone(model.group_embedding.weight.grad)
+            if alpha>0:self.assertGreater(model.image_trs.weight.grad.abs().sum(),0)
+            if alpha<1:self.assertGreater(model.text_trs.weight.grad.abs().sum(),0)
+            model.eval()
+            expected_scores=model.user_embedding.weight@model.item_embedding.weight.T
+            torch.testing.assert_close(model.full_sort_predict(torch.arange(3)),expected_scores)
 
     def test_group_gradient_is_sum_of_member_gradients(self):
         model=GroupRec(dict(self.config,group_init='zero'),self.loader).eval()

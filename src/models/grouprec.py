@@ -4,6 +4,7 @@ import logging
 import math
 import torch
 from torch import nn
+from torch.nn import functional as F
 from models.lightmrecnope import LightMRecNoPE
 
 
@@ -20,6 +21,10 @@ class GroupRec(LightMRecNoPE):
     def __init__(self, config, dataloader):
         super().__init__(config, dataloader)
         dim = config['embedding_size']
+        if not 0 <= self.alpha <= 1:
+            raise ValueError('alpha must be in [0,1] (image loss weight)')
+        self.item_embedding = nn.Embedding(self.n_items, dim)
+        nn.init.xavier_uniform_(self.item_embedding.weight)
         self.group_strength = float(config['group_strength'])
         self.use_personal = bool(config['use_personal'])
         group_size = int(config['group_size'])
@@ -54,9 +59,33 @@ class GroupRec(LightMRecNoPE):
                 nn.Linear(self.t_feat.shape[1], self.feat_embed_dim))
 
     def forward(self):
-        user,item = super().forward()
+        user = self.user_embedding.weight
         if not self.use_personal:
             user = torch.zeros_like(user)
         if self.group_strength:
             user = user + self.group_strength*self.group_embedding(self.user_group)
-        return user,item
+        return user,self.item_embedding.weight
+
+    def ssm(self, user, candidates):
+        user = F.normalize(user, dim=-1)
+        candidates = F.normalize(candidates, dim=-1)
+        logits = (candidates * user[:, None]).sum(-1) / self.temperature
+        return (torch.logsumexp(logits[:, 1:], dim=-1) - logits[:, 0]).mean()
+
+    def calculate_loss(self, interaction):
+        users, positives = interaction[0], interaction[1]
+        user_table, item_table = self.forward()
+        negatives = torch.randint(self.n_items, (users.numel(), self.num_negatives), device=users.device)
+        candidates = torch.cat((positives[:, None], negatives), dim=1)
+        user = user_table[users]
+        loss = self.ssm(user, item_table[candidates])
+        # Use the same sampled candidates for all three objectives. With linear
+        # projectors, projecting unique sampled rows is exactly sufficient.
+        unique, inverse = candidates.unique(return_inverse=True)
+        if self.alpha > 0:
+            image = self.image_trs(self.image_embedding(unique))[inverse]
+            loss = loss + self.alpha * self.ssm(user, image)
+        if self.alpha < 1:
+            text = self.text_trs(self.text_embedding(unique))[inverse]
+            loss = loss + (1-self.alpha) * self.ssm(user, text)
+        return loss
