@@ -335,3 +335,90 @@ Three runs, six-hour queue budget, existing validation early stopping, no model 
 summary.csv, summary.json and manifest.json; console.log includes weight statistics and startup
 time. Rank configs by validation, never by test. Local synthetic tests verify the weighted loss,
 its gradients, unchanged SSM/inference, and exact path enumeration; actual gains require server data.
+
+## RelationRec: order-free homogeneous relations as losses
+
+Reference: https://github.com/MrShouxingMa/REARM/blob/main/model.py (inspected 2026-09-23).
+REARM propagates item/user ID and modality channels on homogeneous graphs before further UI
+propagation. This is a simplified adaptation, not an exact reproduction or an algebraic equivalence
+to those propagations. No REARM attention, meta-network or orthogonality loss is introduced yet.
+
+**No group embedding, numeric block, positional code, correlated initializer, or ID-distance
+feature is instantiated.** IDs only index entities. Historical order-dependent models remain
+in the repository for reproducibility; this new queue never launches them.
+
+Architecture: 64-dimensional learnable user/item IDs, two single linear modality projectors,
+and trainable raw image/text feature tables. Forward uses bare ID lookups by default. Optional
+UI LightGCN has two layers, symmetric binary TRAIN adjacency and layer0/1/2 mean. No user-user
+or item-item propagation occurs in training or inference. Final scoring is raw ID dot product;
+modality and neighbor branches provide training supervision only. Evaluation embeddings cache
+until training resumes.
+
+Neighbors are computed once before training:
+- Separate image/text top-k lists from initial normalized raw features, positive cosine only.
+- User top-k lists ranked by shared-item count in binary TRAIN interactions only.
+- Self-neighbors excluded. Nonzero row weights normalized to sum1. Empty rows use zero weights.
+- Equal scores use independent random entity tie keys (local seed2026), never ID distance.
+  Exact relabeling tests must co-permute those keys with entities, like other random initial states;
+  regenerating tie keys under a new row order is not an exact equivariance test. Tests cover this.
+- K=10. Sparse user products and blockwise feature similarities avoid full dense NxN storage.
+  Top-k search still has pairwise-comparison startup cost; sparse overlaps can be large.
+  Graphs are rebuilt per process. Fixed feature neighbors do not track subsequent feature updates.
+
+For a positive (u,i), define the UltraGCN-inspired constraints:
+
+`L_II = mean_(u,i) [alpha sum_(j in N_v(i)) a_ij softplus(-s_uj)
+                  +(1-alpha) sum_(j in N_t(i)) b_ij softplus(-s_uj)]`
+
+`L_UU = mean_(u,i) sum_(v in N_u(u)) c_uv softplus(-s_vi)`.
+
+These transfer preference to neighboring items/users; they do not directly regress an embedding
+to the average of its neighbors. They follow the supplied weighted -log(sigmoid) form but use
+stable softplus, normalized neighbor weights and a batch mean instead of an unnormalized sum.
+Zero-neighbor rows contribute zero. No added negative samples are used inside these positive
+constraints. The primary objective supplies discrimination; explicit sampled ID L2=1e-4 helps
+control norms. Collapse/over-smoothing prevention is an empirical question, not guaranteed.
+User overlap can include the current positive item, as in TRAIN-graph supervision; this is not
+leave-one-out construction of the homogeneous graphs.
+
+Total loss:
+`L = L_primary + 1.0*(alpha*SSM_image+(1-alpha)*SSM_text)
+                + lambda_II*L_II + lambda_UU*L_UU + 1e-4*sampled_ID_L2`.
+
+Alpha=.5, 32 negatives, SSM tau=.04; SSM is the existing negatives-only logsumexp objective.
+BPR uses raw-dot softplus differences; primary SSM uses cosine scores. Unlike historical order
+experiments, negative sampling excludes ALL TRAIN positives for both primary and modality losses.
+All new ablations share this policy, optimizer and initialization; old group runs are not matched
+baselines. Validation/test labels never construct graphs, weights or the negative rejection table.
+
+Optional LinkProp weight multiplies ONLY each positive's primary loss (BPR or SSM), not modality,
+II, UU or L2 terms. It reuses the documented fixed training-only three-hop support with backtrack
+removal, log1p compression and global mean1 normalization; it is not an original LinkProp loss.
+No pseudo-label propagation, parameter tuning on test or structural inference blending is added.
+
+### Twelve-run queue
+
+For EACH of UI layers0 and2, run these six settings (seed999):
+
+| Setting | Primary | II coefficient | UU coefficient | LinkProp mix |
+| --- | --- | ---: | ---: | ---: |
+| baseline | BPR | 0 | 0 | 0 |
+| ii | BPR | .1 | 0 | 0 |
+| uu | BPR | 0 | .1 | 0 |
+| both | BPR | .1 | .1 | 0 |
+| weighted_both | BPR | .1 | .1 | .5 |
+| ssm_both | SSM | .1 | .1 | 0 |
+
+Layer0 configurations run first. Compare both against ii/uu/baseline, weighted_both against both,
+and layer0 against its layer2 counterpart. This is a small first pass at fixed coefficients, not
+an exhaustive tuning budget. Choose by validation and confirm across seeds before claiming gains.
+
+```bash
+nohup bash experiments/run_relation.sh /root/autodl-tmp/MMRec-Ours/data 0 night_runs/baby-relation-1 12 baby > baby-relation-1.log 2>&1 &
+```
+
+Default: 12-hour total cap, 45-minute per-job cap, 1000-epoch maximum with validation early stopping,
+no checkpoints. Resume by the same command with unchanged source. Old queues are not stopped.
+Return summary.csv, summary.json and manifest.json, plus console.log for failures. Logs include
+neighbor coverage and unscaled component losses every200 batches. Runtime and accuracy on real
+data are not established by local CPU synthetic tests.

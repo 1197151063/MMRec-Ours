@@ -1,0 +1,18 @@
+embedding_size: 64
+alpha: [0.5]
+temperature: [0.04]
+num_negatives: [32]
+learning_rate: 0.001
+weight_decay: 0.0
+use_neg_sampling: False
+evaluate_train: False
+ui_layers: [0]
+primary_loss: [bpr]
+modality_weight: [1.0]
+ii_weight: [0.1]
+uu_weight: [0.1]
+link_mix: [0.0]
+neighbor_k: [10]
+neighbor_seed: [2026]
+relation_reg: [0.0001]
+hyper_parameters: [alpha, temperature, num_negatives, ui_layers, primary_loss, modality_weight, ii_weight, uu_weight, link_mix, neighbor_k, neighbor_seed, relation_reg]
