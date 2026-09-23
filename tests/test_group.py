@@ -12,10 +12,15 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'experiments'))
 from group_plan import build_plan
 
 
+class LinearReference(LightMRecNoPE):
+    def make_projectors(self, dim):
+        return torch.nn.Linear(self.v_feat.shape[1], dim), torch.nn.Linear(self.t_feat.shape[1], dim)
+
+
 class GroupTest(unittest.TestCase):
     def setUp(self):
         fixtures.SIMMRecTest.setUp(self)
-        self.config.update(group_size=2,group_strength=1.,group_mode='contiguous',group_init='normal',
+        self.config.update(embedding_size=64,group_size=2,group_strength=1.,group_mode='contiguous',group_init='normal',
                            group_std=.125,group_trainable=True,use_personal=True,group_seed=2026)
 
     def test_group_sizes_and_rng(self):
@@ -28,7 +33,7 @@ class GroupTest(unittest.TestCase):
         self.assertTrue(torch.equal(rng,torch.get_rng_state()))
 
     def test_zero_strength_exact_baseline_and_rng(self):
-        torch.manual_seed(40); a=LightMRecNoPE(self.config,self.loader)
+        torch.manual_seed(40); a=LinearReference(self.config,self.loader)
         state=torch.get_rng_state().clone()
         torch.manual_seed(40); b=GroupRec(dict(self.config,group_strength=0.),self.loader)
         self.assertTrue(torch.equal(state,torch.get_rng_state()))
@@ -45,12 +50,18 @@ class GroupTest(unittest.TestCase):
     def test_group_gradient_is_sum_of_member_gradients(self):
         model=GroupRec(dict(self.config,group_init='zero'),self.loader).eval()
         user,_=model.forward()
-        coefficients=torch.arange(18).reshape(3,6).float()
+        coefficients=torch.arange(192).reshape(3,64).float()
         (user*coefficients).sum().backward()
         torch.testing.assert_close(model.group_embedding.weight.grad[0],coefficients[:2].sum(0))
         torch.testing.assert_close(model.group_embedding.weight.grad[1],coefficients[2])
 
     def test_variants_and_plan(self):
+        model=GroupRec(self.config,self.loader)
+        self.assertIsInstance(model.image_trs,torch.nn.Linear)
+        self.assertIsInstance(model.text_trs,torch.nn.Linear)
+        self.assertEqual(model.image_trs.out_features,64)
+        self.assertEqual(model.text_trs.out_features,64)
+        self.assertFalse(any(isinstance(m,(torch.nn.BatchNorm1d,torch.nn.Dropout)) for m in model.modules()))
         plan=build_plan()
         self.assertEqual(len(plan),5)
         self.assertEqual(len({j['name'] for j in plan}),5)

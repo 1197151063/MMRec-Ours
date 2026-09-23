@@ -1,4 +1,4 @@
-"""Learnable group preference residual on the original no-PE content baseline."""
+"""Learnable group preference residual with single-layer 64-dimensional modality projectors."""
 import hashlib
 import logging
 import math
@@ -45,6 +45,13 @@ class GroupRec(LightMRecNoPE):
         logging.getLogger().info('GROUP mode=%s size=%s count=%s strength=%s init=%s std=%s trainable=%s map=%s; contiguous uses original numeric user IDs',
                                 mode,group_size,count,self.group_strength,group_init,std,
                                 config['group_trainable'],digest)
+
+    def make_projectors(self, dim):
+        self.feat_embed_dim = 64
+        if dim != self.feat_embed_dim:
+            raise ValueError('GroupRec requires embedding_size=64 to match modality projections')
+        return (nn.Linear(self.v_feat.shape[1], self.feat_embed_dim),
+                nn.Linear(self.t_feat.shape[1], self.feat_embed_dim))
 
     def forward(self):
         user,item = super().forward()

@@ -2,7 +2,7 @@
 
 
 def build_plan(seeds=(999,)):
-    jobs=[dict(name='no_group',model='GroupRec',hypothesis='G0: original no-PE baseline',
+    jobs=[dict(name='no_group',model='GroupRec',hypothesis='G0: single-layer no-group baseline',
                overrides=dict(group_strength=0.))]
     for size in (16,64):
         for mode in ('contiguous','random'):

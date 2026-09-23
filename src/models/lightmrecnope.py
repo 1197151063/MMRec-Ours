@@ -33,8 +33,10 @@ class LightMRecNoPE(GeneralRecommender):
         nn.init.xavier_uniform_(self.user_embedding.weight)
         self.image_embedding = nn.Embedding.from_pretrained(self.v_feat, freeze=False)
         self.text_embedding = nn.Embedding.from_pretrained(self.t_feat, freeze=False)
-        self.image_trs = MLP(self.v_feat.shape[1], config['embedding_size'])
-        self.text_trs = MLP(self.t_feat.shape[1], config['embedding_size'])
+        self.image_trs, self.text_trs = self.make_projectors(config['embedding_size'])
+
+    def make_projectors(self, dim):
+        return MLP(self.v_feat.shape[1], dim), MLP(self.t_feat.shape[1], dim)
 
     def forward(self):
         visual = self.image_trs(self.image_embedding.weight)
