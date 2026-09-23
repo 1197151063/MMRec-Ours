@@ -260,3 +260,43 @@ All early-stopping/best-test reporting stays tied to the best validation epoch. 
 snippet updates `best_result` directly using test metrics; that selection behavior is excluded.
 Graph/auxiliary/ID components add computation or parameters and must not be called structure-free.
 Return summary.csv, summary.json and manifest.json; add console.log for failed jobs.
+
+## User group preference module (54 configurations)
+
+```bash
+nohup bash experiments/run_group.sh /root/autodl-tmp/MMRec-Ours/data 0 night_runs/baby-group-1 24 baby > baby-group-1.log 2>&1 &
+```
+
+GroupRec inherits the original LightMRecNoPE content MLP, trainable raw features, cosine SSM
+training and raw-dot scoring. It adds `group_strength * group_embedding[user_group]` to the
+personal user vector on EVERY forward pass. No PE, correlated initialization or GNN is used.
+For contiguous groups, `user_group[u] = u // group_size`: users 0–15 share group 0 when size=16.
+The last group may be smaller. Random controls permute user positions before integer division,
+so every group retains exactly the same size, including the final partial group. Contiguous
+membership deliberately uses original numeric ordering and is not invariant to arbitrary ID
+relabeling. This source is logged explicitly; it is not a train-interaction-derived grouping.
+
+The group table is learned jointly using the existing recommendation loss. All members update
+the same parameter row. Its initialization uses an isolated local RNG and normal std .125 by
+default (expected squared norm 1 at dimension 64). Personal user initialization is unchanged.
+Group lookup construction does not advance training/dropout/negative-sampling RNG. Zero-init
+controls test parameter sharing without an initial group offset. Frozen controls isolate fixed
+shared offsets from learned group preferences; group-only controls disable personal vectors.
+No added objective is used. Scoring can algebraically merge group and personal vectors; this
+implementation retains the inherited full-catalog forward for a matched timing/protocol comparison.
+
+The suite runs 54 jobs, seed 999, with existing validation early stopping and no checkpoints:
+
+- 2 references: group strength 0 (exact original no-PE loss/gradient) and user-only PE.
+- 42 main configurations: group size 2/4/8/16/32/64/128 × strength .3/1/3 × contiguous/random.
+- 8 controls at size16/strength1: zero-init, frozen, group-only, and std=sqrt(.5), each with both grouping modes.
+- 2 limits: size1 (extra personal parameterization) and one global group.
+
+Only this suite is launched by run_group.sh. Default budget is 24 hours, 45 minutes per job,
+1000 epochs maximum, seed 999. No previous experiment queue is started or stopped. Use the
+same command to resume unfinished jobs, with unchanged source; use a new output directory
+after updating code. Three seeds use `run_night.py --suite group --seeds 999 2024 2025 ...`
+(162 jobs, interleaved by configuration). Select by validation and compare contiguous against
+its same-size, same-strength random counterpart. Do not select a test peak. Return summary.csv,
+summary.json, manifest.json, plus console.log for failed jobs. Real recommendation gains have
+not been verified by local synthetic tests.
