@@ -64,6 +64,28 @@ print('graph and protocol checks passed')
         run = subprocess.run([sys.executable, '-c', code], cwd=ROOT, capture_output=True, text=True, timeout=60)
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 
+    def test_alignment_formula_and_gradients(self):
+        code = r'''
+import sys
+sys.path.insert(0, 'third_party/rearm');sys.path.insert(0, 'experiments')
+import torch
+from rearm_item_loss import REARMItemLoss
+x=torch.tensor([[1.,0.],[0.,2.],[1.,1.]],requires_grad=True)
+ids=torch.tensor([[1,2],[0,2],[0,0]])
+w=torch.tensor([[.25,.75],[1.,0.],[0.,0.]])
+items=torch.tensor([0,2])
+loss=REARMItemLoss.weighted_alignment(x,items,ids,w)
+expected=(.25*torch.nn.functional.softplus(torch.tensor(0.))+.75*torch.nn.functional.softplus(torch.tensor(-1.)))/2
+torch.testing.assert_close(loss,expected)
+loss.backward();assert torch.isfinite(x.grad).all() and x.grad.abs().sum()>0
+# The subclass inherits the entire upstream forward without copying it.
+import model
+assert REARMItemLoss.forward is model.REARM.forward
+print('alignment formula and gradients passed')
+'''
+        run = subprocess.run([sys.executable, '-c', code], cwd=ROOT, capture_output=True, text=True, timeout=60)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+
     def test_official_end_to_end(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp); data = root / 'data/baby'; data.mkdir(parents=True)
@@ -89,6 +111,19 @@ print('graph and protocol checks passed')
             self.assertIn(result['best_epoch'], (0, 1))
             self.assertTrue((output / 'summary.csv').exists())
             self.assertFalse(list(output.rglob('*.pt')) + list(output.rglob('*.pth')))
+            for mode in ('none', 'alignment'):
+                variant_command = command.copy()
+                variant_output = root / mode
+                variant_command[variant_command.index('--output') + 1] = str(variant_output)
+                variant_command += ['--item-mode', mode]
+                variant_run = subprocess.run(variant_command, cwd=ROOT, capture_output=True, text=True, timeout=100,
+                                             env=dict(os.environ, OMP_NUM_THREADS='1', OPENBLAS_NUM_THREADS='1'))
+                self.assertEqual(variant_run.returncode, 0, variant_run.stdout + variant_run.stderr)
+                record = json.loads((variant_output / 'result.json').read_text())
+                self.assertEqual(record['item_mode'], mode)
+                if mode == 'alignment':
+                    self.assertIn('II alignment: raw=', variant_run.stderr)
+                self.assertFalse(list(variant_output.rglob('*.pt')) + list(variant_output.rglob('*.pth')))
             again = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=20)
             self.assertNotEqual(again.returncode,0)
             self.assertIn('Output already used',again.stderr)

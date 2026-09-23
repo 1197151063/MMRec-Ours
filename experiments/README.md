@@ -427,3 +427,7 @@ data are not established by local CPU synthetic tests.
 
 停止在 RelationRec 上叠加组件，先运行固定官方源码和论文配置。
 详见 [REARM_BASELINE.md](REARM_BASELINE.md)，含数据/协议说明、运行和日志查看命令。
+
+### 第一步替换：item 同构传播 → item alignment loss
+
+[REARM_ITEM_LOSS.md](REARM_ITEM_LOSS.md) 定义单模块替换、5 组小规模对照和带日志的运行命令。

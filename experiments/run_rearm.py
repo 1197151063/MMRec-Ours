@@ -3,6 +3,7 @@
 import argparse
 import csv
 import hashlib
+import math
 import json
 import os
 from pathlib import Path
@@ -108,15 +109,20 @@ def main():
     parser.add_argument('--num-workers', type=int, default=8)
     parser.add_argument('--graph-block', type=int, default=256)
     parser.add_argument('--negative-scope', choices=['official', 'train'], default='official')
+    parser.add_argument('--item-mode', choices=['original', 'none', 'alignment'], default='original')
+    parser.add_argument('--item-alignment-weight', type=float, default=0.1)
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
     if args.epochs < 1 or args.graph_block < 1 or args.num_workers < 0:
         parser.error('Invalid epochs, graph-block or num-workers')
+    if not math.isfinite(args.item_alignment_weight) or args.item_alignment_weight < 0:
+        parser.error('item-alignment-weight must be finite and nonnegative')
+    variant = dict(item_mode=args.item_mode, item_alignment_weight=args.item_alignment_weight if args.item_mode == 'alignment' else 0.0)
     config = dict(PRESETS[args.dataset], dataset=args.dataset, seed=args.seed,
                   num_epoch=args.epochs, num_workers=args.num_workers, gpu_id=args.gpu_id,
                   use_gpu=not args.cpu)
     if args.dry_run:
-        print(json.dumps(dict(preset=config, negative_scope=args.negative_scope, upstream=REVISION), indent=2))
+        print(json.dumps(dict(preset=config, negative_scope=args.negative_scope, variant=variant, upstream=REVISION), indent=2))
         return
     output = Path(args.output).resolve()
     source = Path(args.data_path).resolve() / args.dataset
@@ -151,15 +157,18 @@ def main():
             setattr(official_args, key, value)
         import main as official
         import torch
+        if args.item_mode != 'original':
+            from rearm_item_loss import REARMItemLoss
+            official.REARM = lambda config, dataset: REARMItemLoss(config, dataset, weight=variant['item_alignment_weight'])
         manifest = dict(upstream_revision=REVISION, arguments=vars(official_args),
-                        negative_scope=args.negative_scope, data=data_info,
+                        negative_scope=args.negative_scope, variant=variant, data=data_info,
                         torch_version=torch.__version__, python=sys.version,
                         source_sha256={str(p.relative_to(ROOT)): sha(p) for folder in (UPSTREAM, ROOT / 'experiments')
                                        for p in folder.rglob('*.py')})
         write_json(output / 'manifest.json', manifest)
         # Official relative paths are isolated per run. No graph/checkpoint saves.
         os.chdir(output)
-        print('REARM official baseline; negative_scope=' + args.negative_scope, flush=True)
+        print('REARM variant=' + str(variant) + '; negative_scope=' + args.negative_scope, flush=True)
         print('Official scope uses held-out positives to exclude negatives and for fallback user popularity.', flush=True)
         original_update = official.update_result
         current = {'epoch': None, 'valid': None}
@@ -172,9 +181,9 @@ def main():
         def update(net, result):
             original_update(net, result)
             record = dict(model='REARM', dataset=args.dataset, best_epoch=current['epoch'],
-                          valid=current['valid'], test=result, negative_scope=args.negative_scope)
+                          valid=current['valid'], test=result, negative_scope=args.negative_scope, **variant)
             write_json(output / 'result.json', record)
-            row = dict(best_epoch=record['best_epoch'], negative_scope=args.negative_scope,
+            row = dict(best_epoch=record['best_epoch'], negative_scope=args.negative_scope, **variant,
                        **{'valid_' + k: v for k, v in record['valid'].items()},
                        **{'test_' + k: v for k, v in result.items()})
             with (output / 'summary.csv').open('w', newline='') as f:
@@ -183,9 +192,14 @@ def main():
         official.update_result = update
         original_train = official.train
         def train(net, epoch):
+            if hasattr(net.model, 'reset_alignment_stats'):
+                net.model.reset_alignment_stats()
             losses = original_train(net, epoch)
             if any(not torch.isfinite(torch.as_tensor(loss)).all() for loss in losses):
                 raise FloatingPointError('Non-finite training loss')
+            if getattr(net.model, 'alignment_batches', 0):
+                raw = net.model.alignment_sum / net.model.alignment_batches
+                net.logger.info('II alignment: raw=%.6f weighted=%.6f', raw, raw * net.model.item_alignment_weight)
             return losses
         official.train = train
         net = official.Net(official_args)
