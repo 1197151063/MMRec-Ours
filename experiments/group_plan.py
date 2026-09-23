@@ -1,13 +1,8 @@
-"""Five-run check with the existing default initialization and loss settings."""
+"""One fixed 16-group LightGCN/BPR configuration; no random grouping jobs."""
 
 
 def build_plan(seeds=(999,)):
-    jobs=[dict(name='no_group',model='GroupRec',hypothesis='G0: item-ID plus modality SSM, no group',
-               overrides=dict(group_strength=0.))]
-    for size in (16,64):
-        for mode in ('contiguous','random'):
-            jobs.append(dict(name=f'block{size}_{mode}',model='GroupRec',
-                             hypothesis='G1: matched-size contiguous/random group sharing',
-                             overrides=dict(group_size=size,group_mode=mode)))
-    return [dict(j,name=j['name']+'_s'+str(s),overrides=dict(j['overrides'],seed=s))
-            for j in jobs for s in seeds]
+    return [dict(name='groups16_lgcn2_bpr_s'+str(seed), model='GroupRec',
+                 hypothesis='Fixed contiguous groups, two-layer ID LightGCN, BPR plus modality SSM',
+                 overrides=dict(seed=seed, num_groups=16, group_mode='contiguous', group_strength=1.))
+            for seed in seeds]

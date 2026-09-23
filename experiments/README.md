@@ -261,43 +261,32 @@ snippet updates `best_result` directly using test metrics; that selection behavi
 Graph/auxiliary/ID components add computation or parameters and must not be called structure-free.
 Return summary.csv, summary.json and manifest.json; add console.log for failed jobs.
 
-## User group preference module: five-run check
+## Fixed total of 16 user groups with two-layer LightGCN and BPR
 
 ```bash
-nohup bash experiments/run_group.sh /root/autodl-tmp/MMRec-Ours/data 0 night_runs/baby-group-id-1 2 baby > baby-group-id-1.log 2>&1 &
+nohup bash experiments/run_group.sh /root/autodl-tmp/MMRec-Ours/data 0 night_runs/baby-16groups-lgcn-bpr-1 2 baby > baby-16groups-lgcn-bpr-1.log 2>&1 &
 ```
 
-The default suite now has five configurations, seed 999:
+The default queue runs ONE configuration, seed999, a total of 16 contiguous user groups,
+group strength1. Membership is floor(user_id * 16 / n_users), giving balanced group sizes
+that differ by at most one when all numeric user IDs are present. The table always has 16
+rows; tiny synthetic datasets with fewer than 16 users necessarily leave some groups empty.
+No random grouping experiments or group-count sweeps are run. Original numeric order remains an explicit input to grouping.
 
-| Run | Group size | Membership | Strength |
-| --- | ---: | --- | ---: |
-| Baseline | 16 (inactive) | contiguous | 0 |
-| Small contiguous | 16 | original numeric blocks | 1 |
-| Small random | 16 | shuffled positions | 1 |
-| Large contiguous | 64 | original numeric blocks | 1 |
-| Large random | 64 | shuffled positions | 1 |
+User/item ID embeddings (64-dimensional, Xavier initialization) are concatenated and propagated
+through two LightGCN layers on binary TRAIN interactions only. The adjacency is symmetric
+D^-1/2 A D^-1/2, with no self loops. Layer0, layer1 and layer2 are averaged. The learnable group
+vector is then added to the propagated USER vector; it is not inserted into graph propagation.
+Group vectors retain Normal(std=.125) initialization. Image/text projectors remain single
+Linear(input_dim,64) layers and raw feature tables remain trainable.
 
-All runs use existing defaults: personal users retain the original Xavier initialization;
-new group vectors use the existing independent Normal(std=.125), with local group seed 2026.
-There is no initialization sweep, PE, correlated initializer, graph,
-or historical-profile experiment in this queue. Both personal and group vectors are trainable.
-Both modality projectors are now single nn.Linear(input_dim, 64) layers, without BatchNorm, activation or dropout. Raw feature tables remain trainable. Item IDs now have a trainable 64-dimensional Xavier-initialized embedding table.
-Loss is SSM(grouped user, item ID) + alpha*SSM(grouped user, projected image) +
-(1-alpha)*SSM(grouped user, projected text), with alpha=.5 now the IMAGE loss weight.
-All three terms use the same 32 sampled candidates, cosine normalization and tau=.04.
-The inherited unfiltered uniform negative sampling and decoupled SSM denominator remain.
-Projection uses unique sampled item rows; no BatchNorm/dropout is involved. Inference uses
-only grouped user vectors and item ID vectors, with raw-dot scoring. Modality projectors
-supply auxiliary training supervision and are not evaluated during inference. All five configurations use these same linear projectors.
+Loss = BPR(grouped propagated user, propagated item ID) + alpha*SSM(user, projected image)
++ (1-alpha)*SSM(user, projected text). Alpha=.5 (image weight). BPR uses raw-dot scores and
+averages softplus(negative-positive) across the same 32 unfiltered uniform negative candidates.
+Both modality SSM terms retain cosine normalization, tau=.04 and the negatives-only denominator.
+No new regularization, dropout or graph auxiliary loss is added. All terms reuse one graph forward.
+Inference uses grouped propagated users and propagated item IDs with raw-dot scoring.
 
-Every forward adds `group_embedding[u // group_size]` to the personal vector for contiguous
-groups. Random controls preserve exact group sizes, including the final partial group.
-Original numeric order is an explicit dependency. Group construction does not advance the
-training RNG. Strength zero is the no-group control under this same three-term objective. Historical multi-layer baselines remain unchanged in their own models.
-
-Default budget is 2 hours, with the existing 1000-epoch maximum and validation early stopping;
-we reduce the number of configurations rather than prematurely cutting training. No model
-checkpoints are saved. Use the new output directory above: previous group manifests are incompatible with this item-ID/objective change.
-Existing queues are not automatically stopped. Resume unfinished runs with the same command
-and unchanged code. Return summary.csv, summary.json and manifest.json. Synthetic tests verify
-execution, not recommendation gains on the actual datasets.
+The queue retains validation-based early stopping, 1000-epoch maximum, 2-hour total budget,
+and no checkpoint saving. Use the new output directory above; old manifests are incompatible.
+Return summary.csv, summary.json and manifest.json. Local tests use synthetic data only.

@@ -15,14 +15,17 @@ from group_plan import build_plan
 class GroupTest(unittest.TestCase):
     def setUp(self):
         fixtures.SIMMRecTest.setUp(self)
-        self.config.update(embedding_size=64,group_size=2,group_strength=1.,group_mode='contiguous',group_init='normal',
+        self.config.update(embedding_size=64,num_groups=2,group_strength=1.,group_mode='contiguous',group_init='normal',
                            group_std=.125,group_trainable=True,use_personal=True,group_seed=2026)
 
     def test_group_sizes_and_rng(self):
+        self.assertEqual(user_groups(100,16,'contiguous',20).unique().numel(),16)
+        counts=torch.bincount(user_groups(100,16,'contiguous',20))
+        self.assertLessEqual(int(counts.max()-counts.min()),1)
         rng=torch.get_rng_state().clone()
         a=user_groups(11,3,'contiguous',20)
         b=user_groups(11,3,'random',20)
-        torch.testing.assert_close(torch.bincount(a),torch.tensor([3,3,3,2]))
+        torch.testing.assert_close(torch.bincount(a),torch.tensor([4,4,3]))
         torch.testing.assert_close(torch.bincount(a),torch.bincount(b))
         torch.testing.assert_close(b,user_groups(11,3,'random',20))
         self.assertTrue(torch.equal(rng,torch.get_rng_state()))
@@ -35,11 +38,17 @@ class GroupTest(unittest.TestCase):
             torch.manual_seed(99)
             negatives=torch.randint(24,(3,32))
             ids=torch.cat((batch[1,:,None],negatives),dim=1)
-            users=torch.nn.functional.normalize(model.user_embedding(batch[0]),dim=-1)
+            x=torch.cat((model.user_embedding.weight,model.item_embedding.weight))
+            adj=model.ui_adj.to_dense()
+            output=(x+adj@x+adj@adj@x)/3
+            user_table,item_table=output.split((3,24))
+            users=torch.nn.functional.normalize(user_table[batch[0]],dim=-1)
             def reference(table):
                 logits=(torch.nn.functional.normalize(table[ids],dim=-1)*users[:,None]).sum(-1)/model.temperature
                 return (torch.logsumexp(logits[:,1:],dim=-1)-logits[:,0]).mean()
-            expected=reference(model.item_embedding.weight)
+            positive=(user_table[batch[0]]*item_table[batch[1]]).sum(-1)
+            negative=(user_table[batch[0],None]*item_table[negatives]).sum(-1)
+            expected=torch.nn.functional.softplus(negative-positive[:,None]).mean()
             expected=expected+alpha*reference(model.image_trs(model.image_embedding.weight))
             expected=expected+(1-alpha)*reference(model.text_trs(model.text_embedding.weight))
             torch.testing.assert_close(actual,expected)
@@ -49,7 +58,7 @@ class GroupTest(unittest.TestCase):
             if alpha>0:self.assertGreater(model.image_trs.weight.grad.abs().sum(),0)
             if alpha<1:self.assertGreater(model.text_trs.weight.grad.abs().sum(),0)
             model.eval()
-            expected_scores=model.user_embedding.weight@model.item_embedding.weight.T
+            expected_scores=user_table@item_table.T
             torch.testing.assert_close(model.full_sort_predict(torch.arange(3)),expected_scores)
 
     def test_group_gradient_is_sum_of_member_gradients(self):
@@ -68,9 +77,13 @@ class GroupTest(unittest.TestCase):
         self.assertEqual(model.text_trs.out_features,64)
         self.assertFalse(any(isinstance(m,(torch.nn.BatchNorm1d,torch.nn.Dropout)) for m in model.modules()))
         plan=build_plan()
-        self.assertEqual(len(plan),5)
-        self.assertEqual(len({j['name'] for j in plan}),5)
+        self.assertEqual(len(plan),1)
+        self.assertEqual(len({j['name'] for j in plan}),1)
         self.assertTrue(all(not any(k.startswith('group_init') or k == 'group_std' for k in j['overrides']) for j in plan))
+        self.assertEqual(plan[0]['overrides']['num_groups'],16)
+        self.assertEqual(plan[0]['overrides']['group_mode'],'contiguous')
+        self.assertEqual(model.n_layers,2)
+        self.assertEqual(model.ui_adj._nnz(),12)
         batch=torch.tensor([[0,1,2],[0,2,4]])
         for j in plan:
             if j['model']!='GroupRec':continue
@@ -97,6 +110,6 @@ class GroupTest(unittest.TestCase):
             capture_output=True,text=True,timeout=240)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         summary=json.loads((output/'summary.json').read_text())
-        self.assertEqual(len(summary),5)
+        self.assertEqual(len(summary),1)
         self.assertTrue(all(r['state']=='complete' for r in summary),summary)
         self.assertFalse(list(output.rglob('*.pth')))

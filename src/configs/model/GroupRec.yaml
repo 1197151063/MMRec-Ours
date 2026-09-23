@@ -7,7 +7,7 @@ learning_rate: 0.001
 weight_decay: 0.0
 use_neg_sampling: False
 evaluate_train: False
-group_size: [16]
+num_groups: [16]
 group_mode: [contiguous]
 group_strength: [1.0]
 group_init: [normal]
@@ -15,4 +15,4 @@ group_std: [0.125]
 group_trainable: [True]
 use_personal: [True]
 group_seed: [2026]
-hyper_parameters: [alpha, temperature, num_negatives, group_size, group_mode, group_strength, group_init, group_std, group_trainable, use_personal, group_seed]
+hyper_parameters: [alpha, temperature, num_negatives, num_groups, group_mode, group_strength, group_init, group_std, group_trainable, use_personal, group_seed]
