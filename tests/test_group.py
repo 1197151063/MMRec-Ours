@@ -52,8 +52,9 @@ class GroupTest(unittest.TestCase):
 
     def test_variants_and_plan(self):
         plan=build_plan()
-        self.assertEqual(len(plan),54)
-        self.assertEqual(len({j['name'] for j in plan}),54)
+        self.assertEqual(len(plan),5)
+        self.assertEqual(len({j['name'] for j in plan}),5)
+        self.assertTrue(all(not any(k.startswith('group_init') or k == 'group_std' for k in j['overrides']) for j in plan))
         batch=torch.tensor([[0,1,2],[0,2,4]])
         for j in plan:
             if j['model']!='GroupRec':continue
@@ -80,6 +81,6 @@ class GroupTest(unittest.TestCase):
             capture_output=True,text=True,timeout=240)
         self.assertEqual(result.returncode,0,result.stdout+result.stderr)
         summary=json.loads((output/'summary.json').read_text())
-        self.assertEqual(len(summary),54)
+        self.assertEqual(len(summary),5)
         self.assertTrue(all(r['state']=='complete' for r in summary),summary)
         self.assertFalse(list(output.rglob('*.pth')))
