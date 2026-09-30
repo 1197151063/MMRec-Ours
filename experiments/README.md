@@ -431,3 +431,7 @@ data are not established by local CPU synthetic tests.
 ### 第一步替换：item 同构传播 → item alignment loss
 
 [REARM_ITEM_LOSS.md](REARM_ITEM_LOSS.md) 定义单模块替换、5 组小规模对照和带日志的运行命令。
+
+## FreedomAlign：用户提供的 FREEDOM 变体
+
+[FREEDOM_ALIGN.md](FREEDOM_ALIGN.md) 说明修正后的公式、与 FREEDOM/REARM 的差异、四组消融及日志命令。
