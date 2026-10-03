@@ -210,3 +210,10 @@ promising/contradictory findings across training seeds and independent order see
 The [overnight experiment guide](experiments/README.md) provides a 50-configuration,
 12-hypothesis queue with time budgets, isolated logs, failure handling, resume support,
 and machine-readable validation-selected results. No model files are saved.
+
+## Same-item user cohort study
+
+[Matched residual-taste diagnostics and TRAIN-internal prediction](experiments/USER_COHORT_STUDY.md)
+compare near-ID users with exact same-item/degree/overlap controls, then screen
+five ID-distance-free neighbor rules on three masked training splits. CPU-only;
+no main-model changes or checkpoint saving.
