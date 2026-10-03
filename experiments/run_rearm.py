@@ -111,13 +111,18 @@ def main():
     parser.add_argument('--negative-scope', choices=['official', 'train'], default='official')
     parser.add_argument('--item-mode', choices=['original', 'none', 'alignment'], default='original')
     parser.add_argument('--item-alignment-weight', type=float, default=0.1)
+    parser.add_argument('--relation-mode', choices=['original', 'merged_single', 'merged_matched',
+                        'typed_fixed', 'typed_global', 'typed_user'], default='original')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
     if args.epochs < 1 or args.graph_block < 1 or args.num_workers < 0:
         parser.error('Invalid epochs, graph-block or num-workers')
     if not math.isfinite(args.item_alignment_weight) or args.item_alignment_weight < 0:
         parser.error('item-alignment-weight must be finite and nonnegative')
-    variant = dict(item_mode=args.item_mode, item_alignment_weight=args.item_alignment_weight if args.item_mode == 'alignment' else 0.0)
+    if args.relation_mode != 'original' and (args.item_mode != 'original' or args.negative_scope != 'train'):
+        parser.error('Relation experiments require --item-mode original and --negative-scope train')
+    variant = dict(item_mode=args.item_mode, item_alignment_weight=args.item_alignment_weight if args.item_mode == 'alignment' else 0.0,
+                   relation_mode=args.relation_mode)
     config = dict(PRESETS[args.dataset], dataset=args.dataset, seed=args.seed,
                   num_epoch=args.epochs, num_workers=args.num_workers, gpu_id=args.gpu_id,
                   use_gpu=not args.cpu)
@@ -160,6 +165,10 @@ def main():
         if args.item_mode != 'original':
             from rearm_item_loss import REARMItemLoss
             official.REARM = lambda config, dataset: REARMItemLoss(config, dataset, weight=variant['item_alignment_weight'])
+        elif args.relation_mode != 'original':
+            from rearm_relations import REARMRelations
+            official.REARM = lambda config, dataset: REARMRelations(config, dataset, mode=args.relation_mode,
+                                                                    graph_block=args.graph_block)
         manifest = dict(upstream_revision=REVISION, arguments=vars(official_args),
                         negative_scope=args.negative_scope, variant=variant, data=data_info,
                         torch_version=torch.__version__, python=sys.version,
@@ -169,7 +178,9 @@ def main():
         # Official relative paths are isolated per run. No graph/checkpoint saves.
         os.chdir(output)
         print('REARM variant=' + str(variant) + '; negative_scope=' + args.negative_scope, flush=True)
-        print('Official scope uses held-out positives to exclude negatives and for fallback user popularity.', flush=True)
+        print('Official scope uses held-out positives to exclude negatives and for fallback user popularity.'
+              if args.negative_scope == 'official' else
+              'Train-only scope: negative exclusion and fallback user popularity use TRAIN only.', flush=True)
         original_update = official.update_result
         current = {'epoch': None, 'valid': None}
         original_evaluate = official.evaluate_model
@@ -177,11 +188,21 @@ def main():
             result = original_evaluate(net, epoch, data, t_or_v)
             if t_or_v == 'valid':
                 current.update(epoch=epoch, valid=result[1])
+                if hasattr(net.model, 'relation_diagnostics'):
+                    diagnostic = dict(epoch=epoch, **net.model.relation_diagnostics())
+                    with (output / 'relation_diagnostics.jsonl').open('a') as stream:
+                        stream.write(json.dumps(diagnostic) + '\n')
+                    net.logger.info('Relation gates mean=%s user_std=%s entropy=%.4f',
+                                    diagnostic['gate_mean'], diagnostic['gate_user_std'], diagnostic['gate_entropy'])
             return result
         def update(net, result):
             original_update(net, result)
             record = dict(model='REARM', dataset=args.dataset, best_epoch=current['epoch'],
-                          valid=current['valid'], test=result, negative_scope=args.negative_scope, **variant)
+                          valid=current['valid'], test=result, seed=args.seed,
+                          parameters=sum(p.numel() for p in net.model.parameters()),
+                          negative_scope=args.negative_scope, **variant)
+            if hasattr(net.model, 'relation_diagnostics'):
+                record['relations'] = net.model.relation_diagnostics()
             write_json(output / 'result.json', record)
             row = dict(best_epoch=record['best_epoch'], negative_scope=args.negative_scope, **variant,
                        **{'valid_' + k: v for k, v in record['valid'].items()},
@@ -203,6 +224,11 @@ def main():
             return losses
         official.train = train
         net = official.Net(official_args)
+        manifest['parameters'] = dict(total=sum(p.numel() for p in net.model.parameters()),
+                                      trainable=sum(p.numel() for p in net.model.parameters() if p.requires_grad))
+        if hasattr(net.model, 'graph_diagnostics'):
+            manifest['relation_graphs'] = net.model.graph_diagnostics
+        write_json(output / 'manifest.json', manifest)
         if not args.cpu and net.device.type != 'cuda':
             raise RuntimeError('CUDA unavailable; use --cpu only for a deliberate CPU run')
         write_json(output / 'status.json', dict(state='running', pid=os.getpid(), started=started))
