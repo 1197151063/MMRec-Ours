@@ -47,7 +47,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-path', required=True)
     parser.add_argument('--dataset', default='baby')
-    parser.add_argument('--suite', choices=['order', 'init', 'profile', 'corr', 'group', 'wbpr', 'relation', 'freedom_align', 'freedom_uu', 'freedom_cohort'], default='order')
+    parser.add_argument('--suite', choices=['order', 'init', 'profile', 'corr', 'group', 'wbpr', 'relation', 'freedom_align', 'freedom_uu', 'freedom_cohort', 'freedom_semantic'], default='order')
     parser.add_argument('--gpu-id', type=int, default=0)
     parser.add_argument('--hours', type=float, default=8)
     parser.add_argument('--job-minutes', type=float, default=45)
@@ -61,7 +61,9 @@ def main():
     args = parser.parse_args()
     if args.hours <= 0 or args.job_minutes <= 0 or args.epochs <= 0 or args.max_consecutive_failures < 1 or (args.limit is not None and args.limit < 1):
         parser.error('Budgets, epochs and limit must be positive')
-    if args.suite == 'freedom_cohort':
+    if args.suite == 'freedom_semantic':
+        from freedom_semantic_plan import build_plan as selected_plan
+    elif args.suite == 'freedom_cohort':
         from freedom_cohort_plan import build_plan as selected_plan
     elif args.suite == 'freedom_uu':
         from freedom_uu_plan import build_plan as selected_plan
@@ -89,13 +91,17 @@ def main():
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     # Include source content so dirty edits cannot silently reuse previous results.
     digest = hashlib.sha256()
+    source_files = {}
     for folder in ('src', 'experiments'):
         for path in sorted((ROOT / folder).rglob('*')):
             if path.suffix in ('.py', '.yaml'):
                 digest.update(str(path.relative_to(ROOT)).encode())
-                digest.update(path.read_bytes())
+                content = path.read_bytes()
+                digest.update(content)
+                source_files[str(path.relative_to(ROOT))] = hashlib.sha256(content).hexdigest()
     manifest = dict(revision=revision, source_digest=digest.hexdigest(), data_path=str(data),
-                    dataset=args.dataset, epochs=args.epochs, cpu=args.cpu, jobs=jobs)
+                    dataset=args.dataset, epochs=args.epochs, cpu=args.cpu, jobs=jobs,
+                    source_files=source_files)
     if args.dry_run:
         print(json.dumps(manifest, indent=2, ensure_ascii=False))
         return

@@ -224,3 +224,10 @@ no main-model changes or checkpoint saving.
 residual, shared-cosine neighbors, random shared-item neighbors, and residual
 semantic neighbors. Fixed k=80 and beta=0.1; unchanged FreedomAlign objectives,
 no UU attraction loss, no additional trainable parameters, and no checkpoints.
+
+## FreedomAlign semantic scoring and frozen features
+
+[Four factorial experiments](experiments/FREEDOM_SEMANTIC.md) test freezing raw
+modality features and adding a direct semantic cosine residual to both BPR and
+inference scores. Single-layer projectors stay trainable. No UU module or model
+checkpoints; score-scale and raw-feature drift diagnostics are logged.
