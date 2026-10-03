@@ -435,3 +435,7 @@ data are not established by local CPU synthetic tests.
 ## FreedomAlign：用户提供的 FREEDOM 变体
 
 [FREEDOM_ALIGN.md](FREEDOM_ALIGN.md) 说明修正后的公式、与 FREEDOM/REARM 的差异、四组消融及日志命令。
+
+## FreedomAlignUU：完整共同物品和弱语义桥约束
+
+[FREEDOM_UU.md](FREEDOM_UU.md) 定义不截断user候选的路径采样UU loss、7组实验和日志命令。
