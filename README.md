@@ -217,3 +217,10 @@ and machine-readable validation-selected results. No model files are saved.
 compare near-ID users with exact same-item/degree/overlap controls, then screen
 five ID-distance-free neighbor rules on three masked training splits. CPU-only;
 no main-model changes or checkpoint saving.
+
+## FreedomAlign user cohort residual
+
+[Four matched main-model experiments](experiments/FREEDOM_COHORT.md) compare no user
+residual, shared-cosine neighbors, random shared-item neighbors, and residual
+semantic neighbors. Fixed k=80 and beta=0.1; unchanged FreedomAlign objectives,
+no UU attraction loss, no additional trainable parameters, and no checkpoints.

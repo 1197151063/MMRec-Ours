@@ -1,0 +1,23 @@
+embedding_size: 64
+feat_embed_dim: 64
+n_ui_layers: 2
+knn_k: 20
+knn_block: 256
+knn_keep_self: True
+knn_positive_only: False
+alignment_reduction: sum
+temperature: 0.1
+modal_weight: 0.01
+ii_weight: 0.0005
+mm_image_weight: 0.1
+learning_rate: 0.001
+learner: adam
+weight_decay: 0.0
+use_neg_sampling: True
+evaluate_train: False
+cohort_kind: residual_semantic
+cohort_beta: 0.1
+cohort_k: 80
+cohort_dim: 64
+cohort_seed: 2026
+hyper_parameters: [modal_weight, ii_weight, cohort_kind, cohort_beta]
