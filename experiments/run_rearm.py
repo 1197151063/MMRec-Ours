@@ -114,6 +114,7 @@ def main():
     parser.add_argument('--relation-mode', choices=['original', 'merged_single', 'merged_matched',
                         'typed_fixed', 'typed_global', 'typed_user'], default='original')
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--cf-config', help='Validated REARM+CF JSON config; train-only protocol')
     args = parser.parse_args()
     if args.epochs < 1 or args.graph_block < 1 or args.num_workers < 0:
         parser.error('Invalid epochs, graph-block or num-workers')
@@ -126,6 +127,14 @@ def main():
     config = dict(PRESETS[args.dataset], dataset=args.dataset, seed=args.seed,
                   num_epoch=args.epochs, num_workers=args.num_workers, gpu_id=args.gpu_id,
                   use_gpu=not args.cpu)
+    cf = None
+    if args.cf_config:
+        if args.negative_scope != 'train' or args.item_mode != 'original' or args.relation_mode != 'original':
+            parser.error('CF experiments require train-only scope and original item/relation modes')
+        from rearm_cf_config import validate
+        cf = validate(json.loads(Path(args.cf_config).read_text()))
+        config.update(cf['overrides'])
+        variant['cf'] = cf
     if args.dry_run:
         print(json.dumps(dict(preset=config, negative_scope=args.negative_scope, variant=variant, upstream=REVISION), indent=2))
         return
@@ -162,7 +171,10 @@ def main():
             setattr(official_args, key, value)
         import main as official
         import torch
-        if args.item_mode != 'original':
+        if cf is not None:
+            from rearm_cf import REARMCF
+            official.REARM = lambda config, dataset: REARMCF(config, dataset, options=cf['options'], graph_block=args.graph_block)
+        elif args.item_mode != 'original':
             from rearm_item_loss import REARMItemLoss
             official.REARM = lambda config, dataset: REARMItemLoss(config, dataset, weight=variant['item_alignment_weight'])
         elif args.relation_mode != 'original':
@@ -188,6 +200,11 @@ def main():
             result = original_evaluate(net, epoch, data, t_or_v)
             if t_or_v == 'valid':
                 current.update(epoch=epoch, valid=result[1])
+                if hasattr(net.model, 'diagnostics'):
+                    diagnostic = net.model.diagnostics()
+                    with (output / 'cf_diagnostics.jsonl').open('a') as stream:
+                        stream.write(json.dumps(diagnostic) + '\n')
+                    net.logger.info('CF loss components: %s', diagnostic['losses'])
                 if hasattr(net.model, 'relation_diagnostics'):
                     diagnostic = dict(epoch=epoch, **net.model.relation_diagnostics())
                     with (output / 'relation_diagnostics.jsonl').open('a') as stream:
@@ -203,6 +220,8 @@ def main():
                           negative_scope=args.negative_scope, **variant)
             if hasattr(net.model, 'relation_diagnostics'):
                 record['relations'] = net.model.relation_diagnostics()
+            if hasattr(net.model, 'diagnostics'):
+                record['cf_diagnostics'] = net.model.diagnostics()
             write_json(output / 'result.json', record)
             row = dict(best_epoch=record['best_epoch'], negative_scope=args.negative_scope, **variant,
                        **{'valid_' + k: v for k, v in record['valid'].items()},
@@ -213,6 +232,9 @@ def main():
         official.update_result = update
         original_train = official.train
         def train(net, epoch):
+            if cf is not None:
+                from rearm_cf_training import train_cf
+                return train_cf(net, epoch)
             if hasattr(net.model, 'reset_alignment_stats'):
                 net.model.reset_alignment_stats()
             losses = original_train(net, epoch)
@@ -227,11 +249,16 @@ def main():
         manifest['parameters'] = dict(total=sum(p.numel() for p in net.model.parameters()),
                                       trainable=sum(p.numel() for p in net.model.parameters() if p.requires_grad))
         if hasattr(net.model, 'graph_diagnostics'):
-            manifest['relation_graphs'] = net.model.graph_diagnostics
+            manifest['cf_graphs' if cf is not None else 'relation_graphs'] = net.model.graph_diagnostics
         write_json(output / 'manifest.json', manifest)
         if not args.cpu and net.device.type != 'cuda':
             raise RuntimeError('CUDA unavailable; use --cpu only for a deliberate CPU run')
         write_json(output / 'status.json', dict(state='running', pid=os.getpid(), started=started))
+        if cf is not None:
+            from rearm_cf_training import prepare_teacher
+            if prepare_teacher(net) is not None:
+                manifest['cf_graphs'] = net.model.graph_diagnostics
+                write_json(output / 'manifest.json', manifest)
         net.run()
         if not (output / 'result.json').exists():
             raise RuntimeError('No valid best-epoch result was produced')

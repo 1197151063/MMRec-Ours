@@ -1,3 +1,9 @@
+# Experiment entry points
+
+Current round: [REARM + CF, 72 configurations](REARM_CF.md). This returns to the
+complete REARM backbone and tests SSM, UltraGCN constraints, CAGCN weighting,
+NT-SSM, denoising, sampling and GraphDA. Older experiments below are historical.
+
 # Overnight hypothesis audit
 
 Use the existing server environment, from the repository root:
