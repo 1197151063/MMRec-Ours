@@ -1,5 +1,8 @@
 # Experiment entry points
 
+Latest: [REARM capacity allocation, four core/eight extended configurations](REARM_CAPACITY.md).
+Remove attention and replace linear modality projectors with input→256→64 MLPs.
+
 Current round: [REARM + CF, 72 configurations](REARM_CF.md). This returns to the
 complete REARM backbone and tests SSM, UltraGCN constraints, CAGCN weighting,
 NT-SSM, denoising, sampling and GraphDA. Older experiments below are historical.

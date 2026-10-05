@@ -25,6 +25,8 @@ class REARMCF(REARM):
     def __init__(self, config, dataset, options, graph_block=256):
         super().__init__(config, dataset)
         self.cf = validate({'options': options})['options']
+        from rearm_capacity import configure
+        configure(self, self.cf)
         self.r = dataset.sparse_inter_matrix(form='csr').tocsr().astype(np.float32)
         self.r.sum_duplicates(); self.r.data[:] = 1
         self.graph_block = graph_block
@@ -69,7 +71,14 @@ class REARMCF(REARM):
 
     def meta_extra_share(self, id_embed, prefer_or_feat):
         self.cf_id = id_embed
+        if self.cf['meta'] == 'none':
+            # Keep the 192-d output and the third branch's original ID residual.
+            return torch.zeros_like(id_embed)
         return super().meta_extra_share(id_embed, prefer_or_feat)
+
+    def parameter_breakdown(self):
+        from rearm_capacity import parameter_breakdown
+        return parameter_breakdown(self)
 
     def forward(self):
         out = super().forward()
@@ -96,6 +105,7 @@ class REARMCF(REARM):
 
     def diagnostics(self):
         return dict(epoch=self.epoch, batches=self.batches,
+                    training_profile=getattr(self, 'training_profile', {}),
                     losses={k: v / max(1, self.batches) for k, v in self.stats.items()})
 
     def contains(self, users, items):

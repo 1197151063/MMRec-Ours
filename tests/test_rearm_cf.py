@@ -23,6 +23,8 @@ def checks():
     install(helper, 3)
     from rearm_cf import REARMCF, sampled_loss
     from rearm_cf_plan import experiments
+    from rearm_capacity_plan import experiments as capacity_experiments
+    from rearm_capacity import ATTENTION, META, PROJECTORS
     from rearm_cf_graphs import ultra_neighbors, cir_direction, cagcn, normalize, graphda
     from model import REARM
     torch.set_num_threads(1)
@@ -77,6 +79,7 @@ def checks():
     original = REARM(SimpleNamespace(**config),dataset()).eval()
     torch.manual_seed(99)
     reference = REARMCF(SimpleNamespace(**config),dataset(),dict(aux='official')).eval()
+    reference_rng = torch.get_rng_state().clone()
     for expected,actual in zip(original.loss(users,items),reference.loss(users,items)):
         torch.testing.assert_close(torch.as_tensor(actual).float(),torch.as_tensor(expected).float())
     # Exact exclusion works in both directions, only TRAIN positives are forbidden.
@@ -108,6 +111,42 @@ def checks():
         if spec['config']['options']['freeze_features']:
             assert model.image_embedding.weight.grad is None
         assert 'total' in model.diagnostics()['losses']
+    # Architecture ablations retain common initialization, prediction dimension,
+    # and original CL/diff. Removed modules must have no optimizer parameters.
+    reference_parameters = dict(reference.named_parameters())
+    for spec in capacity_experiments(extended=True):
+        torch.manual_seed(99)
+        model = REARMCF(SimpleNamespace(**config),dataset(),spec['config']['options']).eval()
+        torch.testing.assert_close(torch.get_rng_state(),reference_rng)
+        opts=spec['config']['options']
+        for name,p in model.named_parameters():
+            if name in reference_parameters:
+                torch.testing.assert_close(p,reference_parameters[name])
+        count=model.parameter_breakdown()
+        assert sum(g['total'] for g in count.values()) == sum(p.numel() for p in model.parameters())
+        assert count['attention']['total'] == (0 if opts['attention']=='none' else 32)
+        if opts['meta']=='none':
+            assert count['meta']['total']==0 and all(not hasattr(model,n) for n in META)
+        if opts['projector_hidden']:
+            names=PROJECTORS if opts['projector_scope']=='all' else PROJECTORS[:2]
+            for name in names:
+                assert isinstance(getattr(model,name),torch.nn.Sequential)
+                assert getattr(model,name)[0].out_features==256
+                assert getattr(model,name)[2].out_features==dim
+        out=model.forward()
+        assert out.shape==(14,3*dim)
+        if spec['name']=='cap_no_attention':
+            with torch.no_grad():
+                for name in ATTENTION:
+                    for p in getattr(original,name).parameters(): p.zero_()
+            torch.testing.assert_close(out,original.forward())
+        losses=model.loss(users,items)
+        losses[0].backward()
+        assert torch.isfinite(losses[0])
+        assert all(torch.isfinite(p.grad).all() for p in model.parameters() if p.grad is not None)
+        if opts['projector_hidden']:
+            assert model.image_i_trs[0].weight.grad.abs().sum()>0
+            assert model.image_i_trs[2].weight.grad.abs().sum()>0
     # GraphDA dense oracle verifies union, symmetric homogeneous edges and no self loops.
     emb = torch.randn(14,4)
     adj,stats = graphda(emb,8,rr,k=2,homogeneous_k=1,block=3)
@@ -133,7 +172,7 @@ def checks():
         torch.testing.assert_close(p,before[k],rtol=0,atol=0)
     assert not net.optimizer.state and not student.edge_seen.any()
     assert not torch.allclose(graph_before,student.norm_adj.to_dense())
-    print('All 72 variants: finite backward; reference equivalence; loss/graph oracles passed')
+    print('72 CF + 8 capacity variants: finite backward, shared initialization, loss/graph oracles passed')
 
 
 class REARMCFTest(unittest.TestCase):
@@ -184,6 +223,36 @@ class REARMCFTest(unittest.TestCase):
             self.assertEqual(retry.returncode,0,retry.stdout+retry.stderr)
             self.assertEqual(len(list((output/'attempts').iterdir())),1)
             self.assertEqual(json.loads((output/'status.json').read_text())['state'],'complete')
+
+    def test_capacity_queue(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp); data=root/'data/baby'; data.mkdir(parents=True)
+            rng=np.random.default_rng(123)
+            with (data/'baby.inter').open('w') as f:
+                f.write('userID\titemID\tx_label\n')
+                for user in range(48):
+                    for offset in range(6):
+                        f.write(f'{user}\t{(user+offset)%24}\t{0 if offset<4 else offset-3}\n')
+            np.save(data/'image_feat.npy',rng.normal(size=(24,12)).astype('float32'))
+            np.save(data/'text_feat.npy',rng.normal(size=(24,8)).astype('float32'))
+            output=root/'runs'
+            command=[sys.executable,str(ROOT/'experiments/run_rearm_cf.py'),'--data-path',str(data.parent),
+                     '--output',str(output),'--suite','capacity_extended','--epochs','2','--cpu','--num-workers','0','--graph-block','13']
+            run=subprocess.run(command,cwd=ROOT,env=ENV,capture_output=True,text=True,timeout=180)
+            self.assertEqual(run.returncode,0,run.stdout+run.stderr)
+            self.assertEqual(json.loads((output/'status.json').read_text())['state'],'complete',run.stdout+run.stderr)
+            rows=json.loads((output/'summary.json').read_text())['runs']
+            self.assertEqual(len(rows),8)
+            base=next(r for r in rows if r['variant']=='cap_original')
+            plain=next(r for r in rows if r['variant']=='cap_no_attention')
+            self.assertEqual(base['parameters']-plain['parameters'],32)
+            for row in rows:
+                self.assertIsNotNone(row['train_seconds_at_best'])
+                self.assertGreater(row['train_seconds_at_best'],0)
+                result=json.loads((output/row['name']/'result.json').read_text())
+                self.assertEqual(result['cf']['options']['aux'],'official')
+                self.assertEqual(row['parameters'],sum(v['total'] for v in result['parameter_breakdown'].values()))
+            self.assertFalse(list(output.rglob('*.pt'))+list(output.rglob('*.pth')))
 
 
 if __name__=='__main__':

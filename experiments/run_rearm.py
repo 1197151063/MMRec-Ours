@@ -222,6 +222,8 @@ def main():
                 record['relations'] = net.model.relation_diagnostics()
             if hasattr(net.model, 'diagnostics'):
                 record['cf_diagnostics'] = net.model.diagnostics()
+            if hasattr(net.model, 'parameter_breakdown'):
+                record['parameter_breakdown'] = net.model.parameter_breakdown()
             write_json(output / 'result.json', record)
             row = dict(best_epoch=record['best_epoch'], negative_scope=args.negative_scope, **variant,
                        **{'valid_' + k: v for k, v in record['valid'].items()},
@@ -248,6 +250,9 @@ def main():
         net = official.Net(official_args)
         manifest['parameters'] = dict(total=sum(p.numel() for p in net.model.parameters()),
                                       trainable=sum(p.numel() for p in net.model.parameters() if p.requires_grad))
+        if hasattr(net.model, 'parameter_breakdown'):
+            manifest['parameter_breakdown'] = net.model.parameter_breakdown()
+            net.logger.info('Parameter breakdown: %s', manifest['parameter_breakdown'])
         if hasattr(net.model, 'graph_diagnostics'):
             manifest['cf_graphs' if cf is not None else 'relation_graphs'] = net.model.graph_diagnostics
         write_json(output / 'manifest.json', manifest)

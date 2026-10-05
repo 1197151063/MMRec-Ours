@@ -11,6 +11,11 @@ from rearm_cf_graphs import graphda, tensor
 def train_cf(net, epoch):
     net.model.before_epoch(epoch)
     net.model.train()
+    is_cuda = next(net.model.parameters()).is_cuda
+    if is_cuda:
+        torch.cuda.synchronize()
+        torch.cuda.reset_peak_memory_stats()
+    started = time.perf_counter()
     sums, batches = np.zeros(5), 0
     for users, items in net.train_data:
         net.optimizer.zero_grad(set_to_none=True)
@@ -23,6 +28,10 @@ def train_cf(net, epoch):
         batches += 1
     if not batches:
         raise ValueError('Empty training loader')
+    if is_cuda:
+        torch.cuda.synchronize()
+    net.model.training_profile = dict(train_seconds=time.perf_counter()-started,
+        peak_cuda_allocated_mb=torch.cuda.max_memory_allocated()/1024**2 if is_cuda else None)
     return [torch.tensor(x / batches) for x in sums]
 
 

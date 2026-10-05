@@ -25,6 +25,11 @@ def collect(output, jobs):
         if (folder / 'result.json').exists():
             result = json.loads((folder / 'result.json').read_text())
             row.update(best_epoch=result['best_epoch'], parameters=result['parameters'])
+            for group, counts in result.get('parameter_breakdown', {}).items():
+                row['params_' + group] = counts['total']
+            profile = result.get('cf_diagnostics', {}).get('training_profile', {})
+            row.update(train_seconds_at_best=profile.get('train_seconds'),
+                       peak_cuda_allocated_mb_at_best=profile.get('peak_cuda_allocated_mb'))
             for split in ('valid', 'test'):
                 row.update({split + '_' + k: v for k, v in result[split].items()})
         rows.append(row)
@@ -51,7 +56,7 @@ def main():
     parser.add_argument('--data-path', required=True)
     parser.add_argument('--dataset', choices=PRESETS, default='baby')
     parser.add_argument('--output', required=True)
-    parser.add_argument('--suite', choices=['all', 'quick'], default='all')
+    parser.add_argument('--suite', choices=['all', 'quick', 'capacity', 'capacity_extended'], default='all')
     parser.add_argument('--variants', nargs='+', help='Exact variant names; overrides --suite')
     parser.add_argument('--seeds', nargs='+', type=int, default=[2025])
     parser.add_argument('--gpu-id', type=int, default=0)
@@ -68,7 +73,11 @@ def main():
         parser.error('Invalid count or worker setting')
     if len(set(args.seeds)) != len(args.seeds) or (args.retry_failed and not args.resume):
         parser.error('Seeds must be unique; --retry-failed requires --resume')
-    plan = experiments()
+    if args.suite.startswith('capacity'):
+        from rearm_capacity_plan import experiments as capacity_experiments
+        plan = capacity_experiments(extended=args.suite == 'capacity_extended')
+    else:
+        plan = experiments()
     selected = args.variants if args.variants else QUICK if args.suite == 'quick' else [j['name'] for j in plan]
     if len(set(selected)) != len(selected) or set(selected) - {j['name'] for j in plan}:
         parser.error('Unknown or duplicate variants: ' + str(set(selected) - {j['name'] for j in plan}))

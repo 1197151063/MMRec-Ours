@@ -8,7 +8,8 @@ DEFAULTS = dict(aux='ssm', target='projected', ssm_weight=.01, tau=.1, negatives
                 negative_popularity=0., denoise='none', drop_rate=.1, warmup=30,
                 ramp=30, ema_decay=.9, freeze_features=False,
                 nt_weight=0., nt_user=1., nt_item=1., nt_bidirectional=False,
-                graphda_epochs=0, graphda_k=10, graphda_homogeneous_k=0, graphda_mix=1.)
+                graphda_epochs=0, graphda_k=10, graphda_homogeneous_k=0, graphda_mix=1.,
+                attention='original', projector_hidden=0, projector_scope='item', meta='original')
 OVERRIDES = dict(l_r=(1e-7, .1), reg_weight=(0., 1.), num_layer=(0, 10),
                  n_ii_layers=(0, 5), n_uu_layers=(0, 5), diff_loss_weight=(0., 1.),
                  cl_loss_weight=(0., 1.), s_drop=(0., 1.), m_drop=(0., 1.))
@@ -32,7 +33,8 @@ def validate(spec):
                 raise ValueError(k + ' must be an integer')
     for key, allowed in dict(aux=('official', 'none', 'ssm', 'both'), target=('projected', 'propagated'),
                              main=('bpr', 'ssm', 'bce'), cir=('none', 'jc', 'lhn'),
-                             denoise=('none', 'trim', 'ema')).items():
+                             denoise=('none', 'trim', 'ema'), attention=('original', 'none'),
+                             projector_scope=('item', 'all'), meta=('original', 'none')).items():
         if options[key] not in allowed:
             raise ValueError('Invalid ' + key)
     for key in ('image_weight', 'cir_mix', 'graphda_mix'):
@@ -46,6 +48,8 @@ def validate(spec):
         raise ValueError('negative_rank must be smaller than negative_pool')
     if options['graphda_epochs'] and options['cir'] != 'none':
         raise ValueError('GraphDA and CIR change the same adjacency; test them separately')
+    if options['graphda_epochs'] and (options['attention'] != 'original' or options['meta'] != 'original' or options['projector_hidden']):
+        raise ValueError('Capacity ablations must run separately from GraphDA experiments')
     overrides = dict(spec.get('overrides', {}))
     for k, v in overrides.items():
         if k not in OVERRIDES or isinstance(v, bool) or not isinstance(v, (float, int)) or not math.isfinite(v):
