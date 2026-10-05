@@ -176,6 +176,21 @@ def checks():
 
 
 class REARMCFTest(unittest.TestCase):
+    def test_default_queues_skip_reference(self):
+        for suite, count in [('capacity',3),('capacity_extended',7),('quick',13),('all',71)]:
+            command=[sys.executable,str(ROOT/'experiments/run_rearm_cf.py'),'--data-path','/unused',
+                     '--output','/unused-output','--suite',suite,'--dry-run']
+            run=subprocess.run(command,cwd=ROOT,env=ENV,capture_output=True,text=True,timeout=20)
+            self.assertEqual(run.returncode,0,run.stderr)
+            jobs=json.loads(run.stdout)['jobs']
+            self.assertEqual(len(jobs),count)
+            self.assertTrue(all(j['variant'] not in ('reference','cap_original') for j in jobs))
+        for extra in (['--include-reference'],['--variants','cap_original']):
+            run=subprocess.run(command[:command.index('--suite')]+['--suite','capacity','--dry-run']+extra,
+                               cwd=ROOT,env=ENV,capture_output=True,text=True,timeout=20)
+            self.assertEqual(run.returncode,0,run.stderr)
+            self.assertIn('cap_original',[j['variant'] for j in json.loads(run.stdout)['jobs']])
+
     def test_formulas_and_all_models(self):
         run = subprocess.run([sys.executable,__file__,'--checks'],cwd=ROOT,env=ENV,capture_output=True,text=True,timeout=120)
         self.assertEqual(run.returncode,0,run.stdout+run.stderr)
@@ -193,7 +208,7 @@ class REARMCFTest(unittest.TestCase):
             np.save(data/'text_feat.npy',rng.normal(size=(24,8)).astype('float32'))
             output=root/'runs'
             command=[sys.executable,str(ROOT/'experiments/run_rearm_cf.py'),'--data-path',str(data.parent),
-                     '--output',str(output),'--suite','quick','--epochs','2','--cpu','--num-workers','0','--graph-block','13']
+                     '--output',str(output),'--suite','quick','--include-reference','--epochs','2','--cpu','--num-workers','0','--graph-block','13']
             run=subprocess.run(command,cwd=ROOT,env=ENV,capture_output=True,text=True,timeout=300)
             self.assertEqual(run.returncode,0,run.stdout+run.stderr)
             status=json.loads((output/'status.json').read_text())
@@ -237,7 +252,7 @@ class REARMCFTest(unittest.TestCase):
             np.save(data/'text_feat.npy',rng.normal(size=(24,8)).astype('float32'))
             output=root/'runs'
             command=[sys.executable,str(ROOT/'experiments/run_rearm_cf.py'),'--data-path',str(data.parent),
-                     '--output',str(output),'--suite','capacity_extended','--epochs','2','--cpu','--num-workers','0','--graph-block','13']
+                     '--output',str(output),'--suite','capacity_extended','--include-reference','--epochs','2','--cpu','--num-workers','0','--graph-block','13']
             run=subprocess.run(command,cwd=ROOT,env=ENV,capture_output=True,text=True,timeout=180)
             self.assertEqual(run.returncode,0,run.stdout+run.stderr)
             self.assertEqual(json.loads((output/'status.json').read_text())['state'],'complete',run.stdout+run.stderr)

@@ -15,6 +15,33 @@ from run_rearm import ROOT, PRESETS, sha, write_json
 from rearm_cf_plan import experiments, QUICK
 
 
+def historical_references(dataset, seeds, data_hashes, epochs, workers, cpu):
+    records = []
+    for seed in seeds:
+        path = ROOT / 'experiments/references' / f'rearm_{dataset}_s{seed}.json'
+        if not path.exists():
+            continue
+        record = json.loads(path.read_text())
+        command = record['job']['command']
+        reasons = []
+        if data_hashes != record['data_sha256']:
+            # Root paths can change when moving the same dataset to another server.
+            old = {Path(k).name: v for k,v in record['data_sha256'].items()}
+            new = {Path(k).name: v for k,v in data_hashes.items()}
+            if old != new:
+                reasons.append('Data fingerprints differ')
+        if epochs != int(command[command.index('--epochs')+1]):
+            reasons.append('Epoch limit differs')
+        if workers != int(command[command.index('--num-workers')+1]):
+            reasons.append('Data-loader worker count differs')
+        if cpu != ('--cpu' in command):
+            reasons.append('CPU/CUDA execution mode differs')
+        records.append(dict(source=str(path.relative_to(ROOT)), sha256=sha(path), run=record['run'],
+                            input_and_run_settings_match=not reasons, mismatches=reasons,
+                            note='Historical observation, not a newly executed job; compare only under a compatible training protocol'))
+    return records
+
+
 def collect(output, jobs):
     rows = []
     for job in jobs:
@@ -46,7 +73,9 @@ def collect(output, jobs):
         aggregates.append(dict(variant=variant, seeds=[r['seed'] for r in group], valid_recall20_mean=mean,
                                sample_std=(sum((v-mean)**2 for v in values)/(len(values)-1))**.5 if len(values)>1 else None))
     aggregates.sort(key=lambda r: r['valid_recall20_mean'], reverse=True)
-    write_json(output / 'summary.json', dict(runs=rows, validation_ranking=aggregates,
+    manifest_path = output / 'manifest.json'
+    history = json.loads(manifest_path.read_text()).get('historical_references', []) if manifest_path.exists() else []
+    write_json(output / 'summary.json', dict(runs=rows, validation_ranking=aggregates, historical_references=history,
                selection_metric='valid_Recall@20', note='Single-seed screening is not significance evidence; no test-based ranking'))
     return rows
 
@@ -58,6 +87,8 @@ def main():
     parser.add_argument('--output', required=True)
     parser.add_argument('--suite', choices=['all', 'quick', 'capacity', 'capacity_extended'], default='all')
     parser.add_argument('--variants', nargs='+', help='Exact variant names; overrides --suite')
+    parser.add_argument('--include-reference', action='store_true',
+                        help='Explicitly rerun original REARM; default suites skip the reference')
     parser.add_argument('--seeds', nargs='+', type=int, default=[2025])
     parser.add_argument('--gpu-id', type=int, default=0)
     parser.add_argument('--epochs', type=int, default=2000)
@@ -79,6 +110,8 @@ def main():
     else:
         plan = experiments()
     selected = args.variants if args.variants else QUICK if args.suite == 'quick' else [j['name'] for j in plan]
+    if not args.variants and not args.include_reference:
+        selected = [name for name in selected if name not in ('reference', 'cap_original')]
     if len(set(selected)) != len(selected) or set(selected) - {j['name'] for j in plan}:
         parser.error('Unknown or duplicate variants: ' + str(set(selected) - {j['name'] for j in plan}))
     plan = [j for j in plan if j['name'] in selected]
@@ -99,6 +132,7 @@ def main():
                              seed=seed, config=spec['config'], command=command))
     paths = list((ROOT/'third_party/rearm').rglob('*.py')) + list((ROOT/'experiments').glob('rearm*.py')) + [ROOT/'experiments/run_rearm.py', Path(__file__)]
     manifest = dict(jobs=jobs, dataset=args.dataset, protocol='TRAIN-only; validation Recall@20 selection; no checkpoints',
+                    reference_policy='Original REARM is opt-in; historical results are separate from new runs',
                     source_sha256={str(p.relative_to(ROOT)): sha(p) for p in paths})
     if args.dry_run:
         print(json.dumps(manifest, indent=2)); return
@@ -107,6 +141,8 @@ def main():
     inter = data_dir/(args.dataset+'.inter')
     inputs += [inter] if inter.exists() else [data_dir/(name+'.npy') for name in ('train','valid','test')]
     manifest['data_sha256'] = {str(p): sha(p) for p in inputs}
+    manifest['historical_references'] = historical_references(args.dataset, args.seeds, manifest['data_sha256'],
+                                                             args.epochs, args.num_workers, args.cpu)
     output.mkdir(parents=True, exist_ok=True)
     lock = (output/'.queue.lock').open('w')
     try:

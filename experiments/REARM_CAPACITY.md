@@ -1,9 +1,10 @@
 # REARM：去 attention，把容量放到 MLP
 
-## 首轮假设与四组主实验
+## 首轮假设：一份历史基线 + 三组新实验
 
 检验更大的模态投影网络能否替代 attention 的作用，同时保留 REARM 的图建模和损失。
-默认四组，Baby，seed=2025；不再跑上一轮 72 组。
+默认只跑三个新配置，Baby，seed=2025；原始 REARM 复用上一轮结果。
+下表第一行是历史参照，默认不会重新训练。
 
 | 配置 | 四个 attention | Item 图文投影 | User 兴趣投影 | Meta |
 |---|---|---|---|---|
@@ -11,6 +12,14 @@
 | cap_no_attention | 移除 | Linear(d_m,64) | 原始 Linear | 保留 |
 | cap_mlp_item256 | 保留 | d_m→256→64 | 原始 Linear | 保留 |
 | cap_no_attention_mlp_item256 | 移除 | d_m→256→64 | 原始 Linear | 保留 |
+
+已有原始 REARM：valid R@20=0.1040，test R@20=0.1094，test N@20=0.0473。
+来源及完整配置保存在 `references/rearm_baby_s2025.json`。队列在 `manifest.json` 和
+`summary.json` 的 `historical_references` 中单独记录历史观察，不加入本轮 jobs、
+完成计数或验证排名。核对数据哈希、epoch 上限、worker 数、CPU/CUDA 模式，差异会
+列入 `mismatches`；设置匹配也不代表不同软硬件下结果必然逐位一致。
+当前只登记了 Baby/2025；其他数据集或 seed 没有历史记录时不会伪造或自动重跑基线。
+确实需要重跑时显式加 `--include-reference`；指定 `--variants cap_original` 也可。
 
 核心比较：
 
@@ -69,9 +78,9 @@ allocated MB。每轮 `cf_diagnostics.jsonl` 也包含训练时间/峰值显存�
 该显存值是训练段峰值的已分配显存，不是 reserved 显存或整个进程最大显存。
 总运行时间会受提前停止轮次影响；不要用它单独声称每步计算更快。
 
-## 可选扩展：共八组
+## 可选扩展：七组新配置，加历史基线
 
-`--suite capacity_extended` 包含上述四组，再加：
+`--suite capacity_extended` 包含上述三个新配置，再加：
 
 | 配置 | 变化 |
 |---|---|
@@ -85,7 +94,7 @@ allocated MB。每轮 `cf_diagnostics.jsonl` 也包含训练时间/峰值显存�
 这让“去 meta”不同时改变 ID residual 的重复次数。图结构、CL/diff 继续保持。
 这两组尚未触及参数量可能更大的可训练模态/用户兴趣表。
 
-## 服务器运行：四组
+## 服务器运行：三组新实验
 
 同步后先检查日志，成功再运行：
 
@@ -105,8 +114,8 @@ nohup python -u experiments/run_rearm_cf.py \
 tail -n 80 -f "$RUN.log"
 ```
 
-Ctrl+C 仅退出 tail。想一次跑八组，把 `--suite capacity` 改为 `--suite capacity_extended`。
-不要同时运行四组和八组队列重复占用同一 GPU。
+Ctrl+C 仅退出 tail。想一次跑七组，把 `--suite capacity` 改为 `--suite capacity_extended`。
+不要同时运行基础和扩展队列重复占用同一 GPU。
 
 新终端查看状态和日志：
 
@@ -116,7 +125,7 @@ cat "$RUN/status.json"
 tail -n 80 -f "$RUN.log"
 ```
 
-恢复已停止的四组队列（成功项跳过，失败项归档后重跑）：
+恢复本版本启动后已停止的三组队列（成功项跳过，失败项归档后重跑）：
 
 ```bash
 RUN=$(cat night_runs/last-rearm-capacity-run.txt)
@@ -126,7 +135,8 @@ nohup python -u experiments/run_rearm_cf.py \
 tail -n 80 -f "$RUN.log"
 ```
 
-八组队列恢复时须保持 `capacity_extended`。旧 72 组输出不要复用于新实验；代码哈希已变化。
+扩展队列恢复时须保持 `capacity_extended`。旧输出不要复用于新实验；代码哈希已变化。
+若旧版四组队列已经启动，让它完成即可，不需要为了这次默认值调整中断重跑。
 不保存模型检查点，未完成的单组从头重跑。仍按 validation Recall@20 选轮次，
 最多 2000 epoch/组，沿用原 REARM 早停，测试不用于挑模型。
 

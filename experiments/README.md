@@ -1,7 +1,13 @@
 # Experiment entry points
 
-Latest: [REARM capacity allocation, four core/eight extended configurations](REARM_CAPACITY.md).
+Latest: [REARM capacity allocation, three new/seven extended configurations](REARM_CAPACITY.md).
 Remove attention and replace linear modality projectors with input→256→64 MLPs.
+
+Experiment preference: reuse an existing REARM baseline when the dataset, seed and
+training/evaluation protocol are compatible. Do not automatically rerun it for each
+new idea. Default CF/capacity queues skip original REARM; `--include-reference` or
+an explicit reference variant opts back in. Historical observations are labeled
+separately and never counted as fresh runs. New seeds/protocols may need a new reference.
 
 Current round: [REARM + CF, 72 configurations](REARM_CF.md). This returns to the
 complete REARM backbone and tests SSM, UltraGCN constraints, CAGCN weighting,
