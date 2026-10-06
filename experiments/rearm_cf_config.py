@@ -9,7 +9,9 @@ DEFAULTS = dict(aux='ssm', target='projected', ssm_weight=.01, tau=.1, negatives
                 ramp=30, ema_decay=.9, freeze_features=False,
                 nt_weight=0., nt_user=1., nt_item=1., nt_bidirectional=False,
                 graphda_epochs=0, graphda_k=10, graphda_homogeneous_k=0, graphda_mix=1.,
-                attention='original', projector_hidden=0, projector_scope='item', meta='original')
+                attention='original', projector_hidden=0, projector_scope='item', meta='original',
+                preference_mode='original', freeze_item_features=False, activation='original',
+                interest_heads=0, interest_weight=1., interest_tau=.1, interest_chunk=512)
 OVERRIDES = dict(l_r=(1e-7, .1), reg_weight=(0., 1.), num_layer=(0, 10),
                  n_ii_layers=(0, 5), n_uu_layers=(0, 5), diff_loss_weight=(0., 1.),
                  cl_loss_weight=(0., 1.), s_drop=(0., 1.), m_drop=(0., 1.))
@@ -34,7 +36,9 @@ def validate(spec):
     for key, allowed in dict(aux=('official', 'none', 'ssm', 'both'), target=('projected', 'propagated'),
                              main=('bpr', 'ssm', 'bce'), cir=('none', 'jc', 'lhn'),
                              denoise=('none', 'trim', 'ema'), attention=('original', 'none'),
-                             projector_scope=('item', 'all'), meta=('original', 'none')).items():
+                             projector_scope=('item', 'all'), meta=('original', 'none'),
+                             preference_mode=('original', 'frozen', 'projected', 'residual'),
+                             activation=('original', 'gelu', 'relu')).items():
         if options[key] not in allowed:
             raise ValueError('Invalid ' + key)
     for key in ('image_weight', 'cir_mix', 'graphda_mix'):
@@ -50,6 +54,14 @@ def validate(spec):
         raise ValueError('GraphDA and CIR change the same adjacency; test them separately')
     if options['graphda_epochs'] and (options['attention'] != 'original' or options['meta'] != 'original' or options['projector_hidden']):
         raise ValueError('Capacity ablations must run separately from GraphDA experiments')
+    if options['graphda_epochs'] and (options['preference_mode'] != 'original' or options['freeze_item_features'] or options['activation'] != 'original' or options['interest_heads']):
+        raise ValueError('Preference ablations must run separately from GraphDA experiments')
+    if not options['interest_tau'] or options['interest_chunk'] < 1:
+        raise ValueError('Positive interest temperature and chunk size required')
+    if options['preference_mode'] == 'projected' and options['projector_hidden'] and options['projector_scope'] == 'all':
+        raise ValueError('Projected-table equivalence requires linear user projectors')
+    if options['interest_heads'] and (options['main'] != 'bpr' or options['negative_pool'] != 1 or options['negative_popularity'] or options['ultra_ui'] or options['nt_weight']):
+        raise ValueError('Test multi-interest BPR separately from mining/UI/NT loss changes')
     overrides = dict(spec.get('overrides', {}))
     for k, v in overrides.items():
         if k not in OVERRIDES or isinstance(v, bool) or not isinstance(v, (float, int)) or not math.isfinite(v):

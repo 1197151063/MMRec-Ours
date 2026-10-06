@@ -39,12 +39,14 @@ def configure(model, options):
     if options['meta'] == 'none':
         for name in META:
             delattr(model, name)
+    from rearm_preferences import configure_preferences
+    configure_preferences(model, options)
 
 
 def parameter_breakdown(model):
     """Count registered parameters exactly once, including trainable feature tables."""
     groups = {k: dict(total=0, trainable=0) for k in
-              ('feature_tables', 'id_embeddings', 'projectors', 'attention', 'meta', 'other')}
+              ('feature_tables', 'id_embeddings', 'projectors', 'attention', 'meta', 'interests', 'other')}
     for name, parameter in model.named_parameters():
         prefix = name.split('.')[0]
         if prefix in ('image_embedding', 'text_embedding', 'user_v_prefer', 'user_t_prefer'):
@@ -57,6 +59,8 @@ def parameter_breakdown(model):
             group = 'attention'
         elif prefix in META:
             group = 'meta'
+        elif prefix == 'interest_bank':
+            group = 'interests'
         else:
             group = 'other'
         groups[group]['total'] += parameter.numel()

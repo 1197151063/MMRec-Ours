@@ -83,7 +83,15 @@ class REARMCF(REARM):
     def forward(self):
         out = super().forward()
         self.cf_out = out
+        if self.cf['interest_heads']:
+            self.interest_context = self.interest_bank.context(self.fin_feat_prefer, self.n_users, self.embedding_dim)
         return out
+
+    def pair_score(self, out, users, items):
+        score = (out[users] * out[items + self.n_users]).sum(-1)
+        if self.cf['interest_heads']:
+            score = score + self.cf['interest_weight'] * self.interest_bank.paired(self.interest_context, users, items)
+        return score
 
     def train(self, mode=True):
         self._eval_out = None
@@ -96,7 +104,13 @@ class REARMCF(REARM):
             if self._eval_out is None:
                 self._eval_out = self.forward()
             out = self._eval_out
-        return out[interaction[0]] @ out[self.n_users:].T
+        users = interaction[0]
+        scores = out[users] @ out[self.n_users:].T
+        if self.cf['interest_heads']:
+            for begin in range(0, self.n_items, self.cf['interest_chunk']):
+                end = min(begin + self.cf['interest_chunk'], self.n_items)
+                scores[:, begin:end] = scores[:, begin:end] + self.cf['interest_weight'] * self.interest_bank.block(self.interest_context, users, begin, end)
+        return scores
 
     def before_epoch(self, epoch):
         self.epoch = epoch
@@ -104,9 +118,18 @@ class REARMCF(REARM):
         self.batches = 0
 
     def diagnostics(self):
-        return dict(epoch=self.epoch, batches=self.batches,
+        result = dict(epoch=self.epoch, batches=self.batches,
                     training_profile=getattr(self, 'training_profile', {}),
                     losses={k: v / max(1, self.batches) for k, v in self.stats.items()})
+        if self.cf['interest_heads'] and hasattr(self, 'interest_context'):
+            with torch.no_grad():
+                k = self.cf['interest_heads']
+                result['interests'] = dict(heads=k, weight=self.cf['interest_weight'])
+                for name, (q, _) in zip(('visual', 'text'), self.interest_context):
+                    # Average pairwise cosine between unit-norm interest heads.
+                    result['interests'][name + '_mean_head_cosine'] = float(
+                        ((q.sum(1).square().sum(-1) - k)/(k*(k-1))).mean()) if k > 1 else None
+        return result
 
     def contains(self, users, items):
         keys = users * self.n_items + items
@@ -207,8 +230,8 @@ class REARMCF(REARM):
                 scores = (out[users, None] * out[candidates + self.n_users]).sum(-1)
                 rank = scores.argsort(dim=1, descending=True)[:, c['negative_rank']]
                 negative = candidates.gather(1, rank[:, None]).squeeze(1)
-        ps = (out[users] * out[positive + self.n_users]).sum(-1)
-        ns = (out[users] * out[negative + self.n_users]).sum(-1)
+        ps = self.pair_score(out, users, positive)
+        ns = self.pair_score(out, users, negative)
         raw_main = F.softplus(ns - ps)
         need_samples = c['aux'] in ('ssm', 'both') or c['main'] == 'ssm' or c['nt_weight']
         sampled = self.sample(users, c['negatives'], exclude=c['exclude_train']) if need_samples else None

@@ -54,6 +54,9 @@ def collect(output, jobs):
             row.update(best_epoch=result['best_epoch'], parameters=result['parameters'])
             for group, counts in result.get('parameter_breakdown', {}).items():
                 row['params_' + group] = counts['total']
+                row['trainable_params_' + group] = counts['trainable']
+            if result.get('parameter_breakdown'):
+                row['trainable_parameters'] = sum(v['trainable'] for v in result['parameter_breakdown'].values())
             profile = result.get('cf_diagnostics', {}).get('training_profile', {})
             row.update(train_seconds_at_best=profile.get('train_seconds'),
                        peak_cuda_allocated_mb_at_best=profile.get('peak_cuda_allocated_mb'))
@@ -85,7 +88,7 @@ def main():
     parser.add_argument('--data-path', required=True)
     parser.add_argument('--dataset', choices=PRESETS, default='baby')
     parser.add_argument('--output', required=True)
-    parser.add_argument('--suite', choices=['all', 'quick', 'capacity', 'capacity_extended'], default='all')
+    parser.add_argument('--suite', choices=['all', 'quick', 'capacity', 'capacity_extended', 'preferences', 'preferences_extended'], default='all')
     parser.add_argument('--variants', nargs='+', help='Exact variant names; overrides --suite')
     parser.add_argument('--include-reference', action='store_true',
                         help='Explicitly rerun original REARM; default suites skip the reference')
@@ -104,7 +107,10 @@ def main():
         parser.error('Invalid count or worker setting')
     if len(set(args.seeds)) != len(args.seeds) or (args.retry_failed and not args.resume):
         parser.error('Seeds must be unique; --retry-failed requires --resume')
-    if args.suite.startswith('capacity'):
+    if args.suite.startswith('preferences'):
+        from rearm_preferences_plan import experiments as preference_experiments
+        plan = preference_experiments(extended=args.suite == 'preferences_extended')
+    elif args.suite.startswith('capacity'):
         from rearm_capacity_plan import experiments as capacity_experiments
         plan = capacity_experiments(extended=args.suite == 'capacity_extended')
     else:

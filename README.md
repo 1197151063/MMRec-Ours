@@ -231,3 +231,11 @@ no UU attraction loss, no additional trainable parameters, and no checkpoints.
 modality features and adding a direct semantic cosine residual to both BPR and
 inference scores. Single-layer projectors stay trainable. No UU module or model
 checkpoints; score-scale and raw-feature drift diagnostics are logged.
+
+## REARM preference capacity
+
+[Preference capacity experiments](experiments/REARM_PREFERENCES.md) distinguish high-dimensional
+user tables from effective 64-dimensional representations, replace one-time history initialization
+with a persistent history plus learned residual, and test candidate-dependent multi-interest scores.
+Default 12 configurations (15 extended), historical REARM reference reuse, TRAIN-only construction,
+validation selection, parameter accounting and no checkpoints. No ID ordering or grouping is used.
