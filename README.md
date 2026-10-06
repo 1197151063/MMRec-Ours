@@ -239,3 +239,11 @@ user tables from effective 64-dimensional representations, replace one-time hist
 with a persistent history plus learned residual, and test candidate-dependent multi-interest scores.
 Default 12 configurations (15 extended), historical REARM reference reuse, TRAIN-only construction,
 validation selection, parameter accounting and no checkpoints. No ID ordering or grouping is used.
+
+## Priority: shared-history user representations
+
+[Four focused shared-user experiments](experiments/REARM_SHARED_USERS.md) generate user ID/modal
+inputs from current TRAIN item bases, with optional norm-bounded personal residuals. They retain
+REARM attention/meta/losses to isolate the user parameterization change. Near-ID geometry is recorded
+only as detached diagnostics, alongside matched/random controls and collapse indicators; validation
+recommendation quality selects models. Run this suite before the broader capacity queue.

@@ -178,7 +178,8 @@ def checks():
 class REARMCFTest(unittest.TestCase):
     def test_default_queues_skip_reference(self):
         for suite, count in [('capacity',3),('capacity_extended',7),('quick',13),('all',71),
-                             ('preferences',12),('preferences_extended',15)]:
+                             ('preferences',12),('preferences_extended',15),
+                             ('shared_users',4),('shared_users_extended',7)]:
             command=[sys.executable,str(ROOT/'experiments/run_rearm_cf.py'),'--data-path','/unused',
                      '--output','/unused-output','--suite',suite,'--dry-run']
             run=subprocess.run(command,cwd=ROOT,env=ENV,capture_output=True,text=True,timeout=20)

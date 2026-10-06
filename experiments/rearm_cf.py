@@ -25,10 +25,13 @@ class REARMCF(REARM):
     def __init__(self, config, dataset, options, graph_block=256):
         super().__init__(config, dataset)
         self.cf = validate({'options': options})['options']
-        from rearm_capacity import configure
-        configure(self, self.cf)
         self.r = dataset.sparse_inter_matrix(form='csr').tocsr().astype(np.float32)
         self.r.sum_duplicates(); self.r.data[:] = 1
+        from rearm_capacity import configure
+        configure(self, self.cf)
+        if self.cf['shared_users'] != 'none':
+            from rearm_shared_users import configure_shared_users
+            configure_shared_users(self)
         self.graph_block = graph_block
         self.epoch = 0
         self._eval_out = None
@@ -129,6 +132,9 @@ class REARMCF(REARM):
                     # Average pairwise cosine between unit-norm interest heads.
                     result['interests'][name + '_mean_head_cosine'] = float(
                         ((q.sum(1).square().sum(-1) - k)/(k*(k-1))).mean()) if k > 1 else None
+        if self.cf['shared_users'] != 'none' and hasattr(self, 'cf_out'):
+            from rearm_shared_users import geometry
+            result['user_geometry'] = geometry(self)
         return result
 
     def contains(self, users, items):

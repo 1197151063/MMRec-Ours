@@ -11,7 +11,8 @@ DEFAULTS = dict(aux='ssm', target='projected', ssm_weight=.01, tau=.1, negatives
                 graphda_epochs=0, graphda_k=10, graphda_homogeneous_k=0, graphda_mix=1.,
                 attention='original', projector_hidden=0, projector_scope='item', meta='original',
                 preference_mode='original', freeze_item_features=False, activation='original',
-                interest_heads=0, interest_weight=1., interest_tau=.1, interest_chunk=512)
+                interest_heads=0, interest_weight=1., interest_tau=.1, interest_chunk=512,
+                shared_users='none', shared_residual=0., shared_degree_c=0., shared_pop_power=0.)
 OVERRIDES = dict(l_r=(1e-7, .1), reg_weight=(0., 1.), num_layer=(0, 10),
                  n_ii_layers=(0, 5), n_uu_layers=(0, 5), diff_loss_weight=(0., 1.),
                  cl_loss_weight=(0., 1.), s_drop=(0., 1.), m_drop=(0., 1.))
@@ -38,7 +39,7 @@ def validate(spec):
                              denoise=('none', 'trim', 'ema'), attention=('original', 'none'),
                              projector_scope=('item', 'all'), meta=('original', 'none'),
                              preference_mode=('original', 'frozen', 'projected', 'residual'),
-                             activation=('original', 'gelu', 'relu')).items():
+                             activation=('original', 'gelu', 'relu'), shared_users=('none', 'modal', 'all')).items():
         if options[key] not in allowed:
             raise ValueError('Invalid ' + key)
     for key in ('image_weight', 'cir_mix', 'graphda_mix'):
@@ -62,6 +63,12 @@ def validate(spec):
         raise ValueError('Projected-table equivalence requires linear user projectors')
     if options['interest_heads'] and (options['main'] != 'bpr' or options['negative_pool'] != 1 or options['negative_popularity'] or options['ultra_ui'] or options['nt_weight']):
         raise ValueError('Test multi-interest BPR separately from mining/UI/NT loss changes')
+    if options['shared_users'] != 'none' and (options['preference_mode'] != 'original' or options['interest_heads'] or options['graphda_epochs'] or options['nt_weight']):
+        raise ValueError('Shared-user experiments require original preference mode and no interest/GraphDA/NT changes')
+    if options['shared_residual'] > 1:
+        raise ValueError('shared_residual is a relative norm cap and must be <= 1')
+    if options['shared_users'] == 'none' and any(options[k] for k in ('shared_residual', 'shared_degree_c', 'shared_pop_power')):
+        raise ValueError('Shared-user settings require shared_users')
     overrides = dict(spec.get('overrides', {}))
     for k, v in overrides.items():
         if k not in OVERRIDES or isinstance(v, bool) or not isinstance(v, (float, int)) or not math.isfinite(v):

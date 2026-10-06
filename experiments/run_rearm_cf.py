@@ -60,6 +60,14 @@ def collect(output, jobs):
             profile = result.get('cf_diagnostics', {}).get('training_profile', {})
             row.update(train_seconds_at_best=profile.get('train_seconds'),
                        peak_cuda_allocated_mb_at_best=profile.get('peak_cuda_allocated_mb'))
+            geometry = result.get('cf_diagnostics', {}).get('user_geometry', {})
+            for stage in ('user_modal_input', 'final_user'):
+                stats = geometry.get(stage, {})
+                if stats:
+                    for field in ('mean_coordinate_variance', 'mean_norm', 'near_minus_far_cosine_1', 'near_minus_far_cosine_4'):
+                        row['geometry_' + stage + '_' + field] = stats.get(field)
+                    for kind in ('near_1', 'degree_far_1', 'shared_item', 'random'):
+                        row['geometry_' + stage + '_' + kind + '_cosine'] = (stats.get(kind) or {}).get('mean_cosine')
             for split in ('valid', 'test'):
                 row.update({split + '_' + k: v for k, v in result[split].items()})
         rows.append(row)
@@ -88,7 +96,7 @@ def main():
     parser.add_argument('--data-path', required=True)
     parser.add_argument('--dataset', choices=PRESETS, default='baby')
     parser.add_argument('--output', required=True)
-    parser.add_argument('--suite', choices=['all', 'quick', 'capacity', 'capacity_extended', 'preferences', 'preferences_extended'], default='all')
+    parser.add_argument('--suite', choices=['all', 'quick', 'capacity', 'capacity_extended', 'preferences', 'preferences_extended', 'shared_users', 'shared_users_extended'], default='all')
     parser.add_argument('--variants', nargs='+', help='Exact variant names; overrides --suite')
     parser.add_argument('--include-reference', action='store_true',
                         help='Explicitly rerun original REARM; default suites skip the reference')
@@ -107,7 +115,10 @@ def main():
         parser.error('Invalid count or worker setting')
     if len(set(args.seeds)) != len(args.seeds) or (args.retry_failed and not args.resume):
         parser.error('Seeds must be unique; --retry-failed requires --resume')
-    if args.suite.startswith('preferences'):
+    if args.suite.startswith('shared_users'):
+        from rearm_shared_plan import experiments as shared_experiments
+        plan = shared_experiments(extended=args.suite == 'shared_users_extended')
+    elif args.suite.startswith('preferences'):
         from rearm_preferences_plan import experiments as preference_experiments
         plan = preference_experiments(extended=args.suite == 'preferences_extended')
     elif args.suite.startswith('capacity'):
