@@ -1,0 +1,245 @@
+{
+  "arguments": {
+    "data_path": "/Users/chenyijun/Downloads/LightMMRec/data",
+    "dataset": "baby",
+    "output": "experiments/reports/baby_cpu_item_cohorts_rank.json",
+    "sample": 2500,
+    "seed": 2026,
+    "rank_probe": true
+  },
+  "input_sha256": {
+    "/Users/chenyijun/Downloads/LightMMRec/data/baby/baby.inter": "e0abb033ea5cc538bb2becd8c3dc50b619f28f7974ba61f5ed11ce27cf405940",
+    "/Users/chenyijun/Downloads/LightMMRec/data/baby/text_feat.npy": "6667f2ad655c9ecc97cb3383f58988864ef51ec0b39c158b15986c66769f2dc4"
+  },
+  "train_edges": 118551,
+  "pairs": {
+    "eligible_adjacent_no_shared_item": 10804,
+    "sampled": 2500,
+    "matched": 2498,
+    "control": "same target degree, closest mean log item popularity in a 128-user random pool; no shared item; ID separation >256"
+  },
+  "results": {
+    "text_mean": {
+      "near_mean": 0.6042928099632263,
+      "matched_far_mean": 0.5901567935943604,
+      "paired_difference": 0.014135981909930706,
+      "bootstrap_95_descriptive": [
+        0.010306051117368042,
+        0.01785661680623889
+      ],
+      "near_wins_fraction": 0.5568454763811049,
+      "non_tie_fraction": 1.0
+    },
+    "text_c64": {
+      "near_mean": 0.13827849924564362,
+      "matched_far_mean": 0.10821141302585602,
+      "paired_difference": 0.03006710112094879,
+      "bootstrap_95_descriptive": [
+        0.023184852115809916,
+        0.036726451478898525
+      ],
+      "near_wins_fraction": 0.5068054443554844,
+      "non_tie_fraction": 0.9067253803042434,
+      "same_primary_cohort": {
+        "near_fraction": 0.03883106485188151,
+        "matched_far_fraction": 0.02602081665332266
+      },
+      "cohort_occupancy_min_max": [
+        175.1343536376953,
+        5003.6474609375
+      ]
+    },
+    "text_c128": {
+      "near_mean": 0.08247552812099457,
+      "matched_far_mean": 0.059271976351737976,
+      "paired_difference": 0.023203549906611443,
+      "bootstrap_95_descriptive": [
+        0.017925715167075397,
+        0.02837208765558898
+      ],
+      "near_wins_fraction": 0.46036829463570855,
+      "non_tie_fraction": 0.7994395516413131,
+      "same_primary_cohort": {
+        "near_fraction": 0.02321857485988791,
+        "matched_far_fraction": 0.015612489991993595
+      },
+      "cohort_occupancy_min_max": [
+        32.39508056640625,
+        2979.790283203125
+      ]
+    },
+    "text_shuffled_c64": {
+      "near_mean": 0.11270947754383087,
+      "matched_far_mean": 0.1207234188914299,
+      "paired_difference": -0.008013945072889328,
+      "bootstrap_95_descriptive": [
+        -0.013716639298945666,
+        -0.001632924893056043
+      ],
+      "near_wins_fraction": 0.42594075260208164,
+      "non_tie_fraction": 0.9059247397918335,
+      "same_primary_cohort": {
+        "near_fraction": 0.020416333066453164,
+        "matched_far_fraction": 0.02121697357886309
+      },
+      "cohort_occupancy_min_max": [
+        294.02130126953125,
+        5303.65625
+      ]
+    },
+    "collaborative_mean": {
+      "near_mean": 0.5394805073738098,
+      "matched_far_mean": 0.4975574314594269,
+      "paired_difference": 0.04192308336496353,
+      "bootstrap_95_descriptive": [
+        0.033199535217136145,
+        0.05103410296142101
+      ],
+      "near_wins_fraction": 0.5604483586869495,
+      "non_tie_fraction": 1.0,
+      "no_shared_item_neighbor_retrieval": {
+        "near_top20": 0.0020016012810248197,
+        "matched_far_top20": 0.0008006405124099279,
+        "near_top80": 0.010808646917534028,
+        "matched_far_top80": 0.0032025620496397116
+      }
+    },
+    "collaborative_c64": {
+      "near_mean": 0.1299152821302414,
+      "matched_far_mean": 0.09525826573371887,
+      "paired_difference": 0.034657008945941925,
+      "bootstrap_95_descriptive": [
+        0.02626557508483529,
+        0.04253117786720395
+      ],
+      "near_wins_fraction": 0.48078462770216174,
+      "non_tie_fraction": 0.8742994395516414,
+      "same_primary_cohort": {
+        "near_fraction": 0.04723779023218575,
+        "matched_far_fraction": 0.02321857485988791
+      },
+      "cohort_occupancy_min_max": [
+        338.2377624511719,
+        6323.14990234375
+      ]
+    },
+    "collaborative_c128": {
+      "near_mean": 0.0853833332657814,
+      "matched_far_mean": 0.056301549077034,
+      "paired_difference": 0.029081780463457108,
+      "bootstrap_95_descriptive": [
+        0.022622232651337983,
+        0.035801122430711985
+      ],
+      "near_wins_fraction": 0.41313050440352284,
+      "non_tie_fraction": 0.7121697357886309,
+      "same_primary_cohort": {
+        "near_fraction": 0.024819855884707767,
+        "matched_far_fraction": 0.01401120896717374
+      },
+      "cohort_occupancy_min_max": [
+        57.315895080566406,
+        3726.875732421875
+      ]
+    },
+    "collaborative_shuffled_c64": {
+      "near_mean": 0.11716014891862869,
+      "matched_far_mean": 0.11982906609773636,
+      "paired_difference": -0.002668927423655987,
+      "bootstrap_95_descriptive": [
+        -0.00943980081938207,
+        0.004023044178029516
+      ],
+      "near_wins_fraction": 0.4403522818254604,
+      "non_tie_fraction": 0.8738991192954364,
+      "same_primary_cohort": {
+        "near_fraction": 0.03682946357085669,
+        "matched_far_fraction": 0.03923138510808647
+      },
+      "cohort_occupancy_min_max": [
+        377.43121337890625,
+        6726.30224609375
+      ]
+    },
+    "joint_mean": {
+      "near_mean": 0.567440390586853,
+      "matched_far_mean": 0.5366528630256653,
+      "paired_difference": 0.030787581577897072,
+      "bootstrap_95_descriptive": [
+        0.025060403626412153,
+        0.03628052119165659
+      ],
+      "near_wins_fraction": 0.5712570056044836,
+      "non_tie_fraction": 1.0,
+      "no_shared_item_neighbor_retrieval": {
+        "near_top20": 0.0028022417934347476,
+        "matched_far_top20": 0.0012009607686148918,
+        "near_top80": 0.01120896717373899,
+        "matched_far_top80": 0.0028022417934347476
+      }
+    },
+    "joint_c64": {
+      "near_mean": 0.1391250193119049,
+      "matched_far_mean": 0.09981194138526917,
+      "paired_difference": 0.039313070476055145,
+      "bootstrap_95_descriptive": [
+        0.030857468070462347,
+        0.0479343494400382
+      ],
+      "near_wins_fraction": 0.4967974379503603,
+      "non_tie_fraction": 0.8742994395516414,
+      "no_shared_item_neighbor_retrieval": {
+        "near_top20": 0.0028022417934347476,
+        "matched_far_top20": 0.0,
+        "near_top80": 0.009607686148919135,
+        "matched_far_top80": 0.0020016012810248197
+      },
+      "same_primary_cohort": {
+        "near_fraction": 0.051240992794235385,
+        "matched_far_fraction": 0.02401921537229784
+      },
+      "cohort_occupancy_min_max": [
+        153.07859802246094,
+        5752.9658203125
+      ]
+    },
+    "joint_c128": {
+      "near_mean": 0.09618189930915833,
+      "matched_far_mean": 0.06468166410923004,
+      "paired_difference": 0.031500235199928284,
+      "bootstrap_95_descriptive": [
+        0.024403752153739335,
+        0.038227479625493284
+      ],
+      "near_wins_fraction": 0.43835068054443554,
+      "non_tie_fraction": 0.754603682946357,
+      "same_primary_cohort": {
+        "near_fraction": 0.028823058446757407,
+        "matched_far_fraction": 0.01521216973578863
+      },
+      "cohort_occupancy_min_max": [
+        4.84161901473999,
+        2855.336669921875
+      ]
+    },
+    "joint_shuffled_c64": {
+      "near_mean": 0.12506389617919922,
+      "matched_far_mean": 0.12631046772003174,
+      "paired_difference": -0.0012465848121792078,
+      "bootstrap_95_descriptive": [
+        -0.007797866500914096,
+        0.004837817151565104
+      ],
+      "near_wins_fraction": 0.44835868694955966,
+      "non_tie_fraction": 0.9063250600480385,
+      "same_primary_cohort": {
+        "near_fraction": 0.028823058446757407,
+        "matched_far_fraction": 0.025620496397117692
+      },
+      "cohort_occupancy_min_max": [
+        338.1053466796875,
+        4313.78173828125
+      ]
+    }
+  }
+}

@@ -1,0 +1,190 @@
+{
+  "arguments": {
+    "data_path": "/Users/chenyijun/Downloads/LightMMRec/data",
+    "dataset": "baby",
+    "output": "experiments/reports/baby_cpu_item_cohorts_s2027.json",
+    "sample": 2500,
+    "seed": 2027
+  },
+  "input_sha256": {
+    "/Users/chenyijun/Downloads/LightMMRec/data/baby/baby.inter": "e0abb033ea5cc538bb2becd8c3dc50b619f28f7974ba61f5ed11ce27cf405940",
+    "/Users/chenyijun/Downloads/LightMMRec/data/baby/text_feat.npy": "6667f2ad655c9ecc97cb3383f58988864ef51ec0b39c158b15986c66769f2dc4"
+  },
+  "train_edges": 118551,
+  "pairs": {
+    "eligible_adjacent_no_shared_item": 10804,
+    "sampled": 2500,
+    "matched": 2500,
+    "control": "same target degree, closest mean log item popularity in a 128-user random pool; no shared item; ID separation >256"
+  },
+  "results": {
+    "text_mean": {
+      "near_mean": 0.6044806838035583,
+      "matched_far_mean": 0.5870983600616455,
+      "paired_difference": 0.017382364720106125,
+      "bootstrap_95_descriptive": [
+        0.013589729904197156,
+        0.021509731747210024
+      ],
+      "near_wins_fraction": 0.5736,
+      "non_tie_fraction": 1.0
+    },
+    "text_c64": {
+      "near_mean": 0.13479237258434296,
+      "matched_far_mean": 0.10212276875972748,
+      "paired_difference": 0.03266959264874458,
+      "bootstrap_95_descriptive": [
+        0.025169831095263363,
+        0.040399122051894665
+      ],
+      "near_wins_fraction": 0.514,
+      "non_tie_fraction": 0.8896,
+      "cohort_occupancy_min_max": [
+        460.0348205566406,
+        4706.689453125
+      ]
+    },
+    "text_c128": {
+      "near_mean": 0.08510874956846237,
+      "matched_far_mean": 0.056461457163095474,
+      "paired_difference": 0.028647296130657196,
+      "bootstrap_95_descriptive": [
+        0.022796845994889736,
+        0.034616601560264824
+      ],
+      "near_wins_fraction": 0.4548,
+      "non_tie_fraction": 0.7696,
+      "cohort_occupancy_min_max": [
+        36.073219299316406,
+        2866.244384765625
+      ]
+    },
+    "text_shuffled_c64": {
+      "near_mean": 0.11557197570800781,
+      "matched_far_mean": 0.11734062433242798,
+      "paired_difference": -0.0017686610808596015,
+      "bootstrap_95_descriptive": [
+        -0.008130094152875245,
+        0.004643565625883639
+      ],
+      "near_wins_fraction": 0.4552,
+      "non_tie_fraction": 0.9116,
+      "cohort_occupancy_min_max": [
+        243.6708221435547,
+        4745.46240234375
+      ]
+    },
+    "collaborative_mean": {
+      "near_mean": 0.5416014790534973,
+      "matched_far_mean": 0.4938659071922302,
+      "paired_difference": 0.04773553088307381,
+      "bootstrap_95_descriptive": [
+        0.03916356544941664,
+        0.05566210513934493
+      ],
+      "near_wins_fraction": 0.5764,
+      "non_tie_fraction": 1.0
+    },
+    "collaborative_c64": {
+      "near_mean": 0.12803637981414795,
+      "matched_far_mean": 0.09041132777929306,
+      "paired_difference": 0.037625059485435486,
+      "bootstrap_95_descriptive": [
+        0.028779050149023534,
+        0.046418555825948705
+      ],
+      "near_wins_fraction": 0.4788,
+      "non_tie_fraction": 0.8492,
+      "cohort_occupancy_min_max": [
+        572.639404296875,
+        5945.310546875
+      ]
+    },
+    "collaborative_c128": {
+      "near_mean": 0.08500044792890549,
+      "matched_far_mean": 0.054228443652391434,
+      "paired_difference": 0.030771996825933456,
+      "bootstrap_95_descriptive": [
+        0.0234554722905159,
+        0.03781448611989617
+      ],
+      "near_wins_fraction": 0.3944,
+      "non_tie_fraction": 0.6932,
+      "cohort_occupancy_min_max": [
+        56.81779479980469,
+        4188.02197265625
+      ]
+    },
+    "collaborative_shuffled_c64": {
+      "near_mean": 0.11266818642616272,
+      "matched_far_mean": 0.11323641240596771,
+      "paired_difference": -0.0005682214396074414,
+      "bootstrap_95_descriptive": [
+        -0.006309222162235529,
+        0.00549238387029618
+      ],
+      "near_wins_fraction": 0.4492,
+      "non_tie_fraction": 0.8816,
+      "cohort_occupancy_min_max": [
+        322.7058410644531,
+        5625.39794921875
+      ]
+    },
+    "joint_mean": {
+      "near_mean": 0.5687667727470398,
+      "matched_far_mean": 0.5335292220115662,
+      "paired_difference": 0.03523758053779602,
+      "bootstrap_95_descriptive": [
+        0.029522817907854916,
+        0.03992468798533082
+      ],
+      "near_wins_fraction": 0.5892,
+      "non_tie_fraction": 1.0
+    },
+    "joint_c64": {
+      "near_mean": 0.14248821139335632,
+      "matched_far_mean": 0.09469946473836899,
+      "paired_difference": 0.047788746654987335,
+      "bootstrap_95_descriptive": [
+        0.0388966073282063,
+        0.05545980362221598
+      ],
+      "near_wins_fraction": 0.5224,
+      "non_tie_fraction": 0.8856,
+      "cohort_occupancy_min_max": [
+        8.331953048706055,
+        5091.0966796875
+      ]
+    },
+    "joint_c128": {
+      "near_mean": 0.09334467351436615,
+      "matched_far_mean": 0.05629163980484009,
+      "paired_difference": 0.03705303370952606,
+      "bootstrap_95_descriptive": [
+        0.030460524279624222,
+        0.04452576227486133
+      ],
+      "near_wins_fraction": 0.4344,
+      "non_tie_fraction": 0.74,
+      "cohort_occupancy_min_max": [
+        9.841572761535645,
+        2760.89794921875
+      ]
+    },
+    "joint_shuffled_c64": {
+      "near_mean": 0.12205203622579575,
+      "matched_far_mean": 0.12338811904191971,
+      "paired_difference": -0.001336081069894135,
+      "bootstrap_95_descriptive": [
+        -0.007854189467616379,
+        0.005144776590168475
+      ],
+      "near_wins_fraction": 0.4428,
+      "non_tie_fraction": 0.8796,
+      "cohort_occupancy_min_max": [
+        5.8564772605896,
+        3460.5654296875
+      ]
+    }
+  }
+}

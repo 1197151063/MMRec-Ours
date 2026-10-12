@@ -1,0 +1,12 @@
+{
+  "pairs": {
+    "eligible_adjacent_no_shared_item": 10804,
+    "sampled": 2500,
+    "matched": 2498,
+    "control": "same target degree, closest mean log item popularity in a 128-user random pool; no shared item; ID separation >256"
+  },
+  "near_mean": 0.02863520011305809,
+  "control_mean": 0.01625245437026024,
+  "same_primary_near": 0.03843074459567654,
+  "same_primary_control": 0.014411529223378704
+}
