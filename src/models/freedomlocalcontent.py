@@ -51,6 +51,7 @@ class FreedomLocalContent(GeneralRecommender):
 
         self.user_embedding = nn.Embedding(self.n_users, self.embedding_dim)
         nn.init.xavier_uniform_(self.user_embedding.weight)
+        self._init_item_input(config)
         freeze = bool(config['freeze_features'])
         self.image_embedding = nn.Embedding.from_pretrained(self.v_feat, freeze=freeze)
         self.text_embedding = nn.Embedding.from_pretrained(self.t_feat, freeze=freeze)
@@ -79,6 +80,14 @@ class FreedomLocalContent(GeneralRecommender):
         self.register_buffer('local_scale', torch.tensor(max((1 + self.local_rho ** 2) * moment, 1e-12)))
         self._eval_embeddings = None
         self._batches = 0
+        self._log_architecture()
+
+    def _init_item_input(self, config):
+        # The content-only model has no independent item-ID parameters.
+        pass
+
+    def _log_architecture(self):
+        freeze = not self.image_embedding.weight.requires_grad
         getLogger().info('FreedomLocalContent: NO item-ID table or item-item propagation; '
                          'item=alpha*image+(1-alpha)*text alpha=%g; UI layers=%d; '
                          'one negative-denominator SSM tau=%g uniform_negatives=%d (unfiltered); '
