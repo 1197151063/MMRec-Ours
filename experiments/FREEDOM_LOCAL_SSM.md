@@ -57,22 +57,37 @@ for scalar-return models; inspect the named `FreedomLocalSSM loss` entries.
 
 ## Run and logs
 
-Only three new-model runs: local_weight=.01/.1/1, seed999. No old baseline rerun,
-multiple training seeds or model checkpoint saving. Epoch selection uses the
-existing validation protocol. Actual recommendation gains remain unmeasured.
+The current recommended queue fixes local_weight=.01, alpha=.5, seed999, and
+runs the full 20-point Cartesian grid:
+
+- tau: .04, .07, .1, .2
+- lambda: .001, .005, .01, .05, .1
+
+No old baseline reruns, multiple seeds or model checkpoints. Each job allows
+1000 epochs with existing validation early stopping, capped at 60 minutes;
+the whole queue has a 24-hour ceiling. A timeout is marked as such, not counted
+as a successful final result. Actual recommendation gains remain unmeasured.
+
+`summary.csv/json` includes the explicit config_tau/config_lambda/alpha/local
+columns. `validation_ranking.csv` orders completed runs by VALID Recall@20;
+`best_validation.json` records the selected overrides and marks the result
+provisional until all 20 jobs complete. Ties use the job name, never TEST scores.
+The old three-local-strength wrapper remains available for historical runs;
+use the grid wrapper below for the current request.
 
 ```bash
 cd /root/autodl-tmp/MMRec-Ours
 git pull --ff-only
-run="idbpr-batchssm-$(date +%Y%m%d-%H%M%S)"
-nohup bash experiments/run_freedom_local_ssm.sh \
+run="idbpr-ssm-grid-$(date +%Y%m%d-%H%M%S)"
+nohup bash experiments/run_freedom_local_ssm_grid.sh \
   /root/autodl-tmp/MMRec-Ours/data 0 "night_runs/$run" baby > "$run.log" 2>&1 &
 echo "Run: $run"
 # View queue and first training job; Ctrl-C stops tail, not training.
-tail -F "$run.log" "night_runs/$run/idbpr_modalssm_local_w0.01_s999/console.log"
+tail -F "$run.log" "night_runs/$run/idbpr_batchssm_tau0.04_lambda0.001_s999/console.log"
 ```
 
-Return manifest.json, summary.csv and summary.json from that output directory.
+Return manifest.json, summary.csv, summary.json, validation_ranking.csv and
+best_validation.json from that output directory.
 CPU tests verify the exact forward/objective, isolated ii gradients on raw item
 IDs, all trainable gradients, exact off-diagonal SSM, singleton batches, absence of
 SSM sampling, pruning/cache, pure BPR when auxiliaries are off,

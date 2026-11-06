@@ -15,6 +15,6 @@ knn_block: 256
 knn_keep_self: True
 ii_weight: 0.0005
 local_rho: 0.9394130628134758
-local_weight: 0.1
+local_weight: 0.01
 use_neg_sampling: True  # Required only by the ID BPR branch.
 hyper_parameters: []

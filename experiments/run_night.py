@@ -29,6 +29,9 @@ def summarize(output, jobs):
         folder = output / job['name']
         status = json.loads((folder / 'status.json').read_text()) if (folder / 'status.json').exists() else {'state': 'pending'}
         row = dict(name=job['name'], hypothesis=job['hypothesis'], model=job['model'], **status)
+        if job['model'] == 'FreedomLocalSSM':
+            row.update({'config_' + key: job['overrides'][key]
+                        for key in ('tau', 'lambda', 'alpha', 'local_weight') if key in job['overrides']})
         if status['state'] == 'complete':
             result = json.loads((folder / 'result.json').read_text())[0]
             row['best_epoch'] = result['best_epoch']
@@ -43,11 +46,28 @@ def summarize(output, jobs):
         writer.writerows(rows)
 
 
+    # Only the requested tau/lambda grid receives a validation-only leaderboard.
+    if jobs and all(j['model'] == 'FreedomLocalSSM' and
+                    {'tau', 'lambda'} <= j['overrides'].keys() for j in jobs):
+        ranked = sorted((row for row in rows if row['state'] == 'complete'),
+                        key=lambda row: (-row['valid_recall@20'], row['name']))
+        with (output / 'validation_ranking.csv').open('w', newline='') as stream:
+            writer = csv.DictWriter(stream, fieldnames=['rank'] + fields)
+            writer.writeheader()
+            writer.writerows(dict(rank=index, **row) for index, row in enumerate(ranked, 1))
+        best = ranked[0] if ranked else None
+        overrides = next((j['overrides'] for j in jobs if best and j['name'] == best['name']), None)
+        write_json(output / 'best_validation.json', dict(
+            selected_by='valid_recall@20; ties resolved by job name, never TEST',
+            completed=len(ranked), total=len(jobs), provisional=len(ranked) != len(jobs),
+            best=best, overrides=overrides))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-path', required=True)
     parser.add_argument('--dataset', default='baby')
-    parser.add_argument('--suite', choices=['order', 'init', 'profile', 'corr', 'group', 'wbpr', 'relation', 'freedom_align', 'freedom_uu', 'freedom_cohort', 'freedom_semantic', 'freedom_soft_cohort', 'freedom_motif', 'freedom_spectral_group', 'freedom_time_anchor', 'freedom_time_anchor_no_ui', 'freedom_spectral_code', 'freedom_order_prior', 'freedom_local', 'freedom_local_content', 'freedom_local_ssm'], default='order')
+    parser.add_argument('--suite', choices=['order', 'init', 'profile', 'corr', 'group', 'wbpr', 'relation', 'freedom_align', 'freedom_uu', 'freedom_cohort', 'freedom_semantic', 'freedom_soft_cohort', 'freedom_motif', 'freedom_spectral_group', 'freedom_time_anchor', 'freedom_time_anchor_no_ui', 'freedom_spectral_code', 'freedom_order_prior', 'freedom_local', 'freedom_local_content', 'freedom_local_ssm', 'freedom_local_ssm_grid'], default='order')
     parser.add_argument('--gpu-id', type=int, default=0)
     parser.add_argument('--hours', type=float, default=8)
     parser.add_argument('--job-minutes', type=float, default=45)
@@ -61,7 +81,9 @@ def main():
     args = parser.parse_args()
     if args.hours <= 0 or args.job_minutes <= 0 or args.epochs <= 0 or args.max_consecutive_failures < 1 or (args.limit is not None and args.limit < 1):
         parser.error('Budgets, epochs and limit must be positive')
-    if args.suite == 'freedom_local_ssm':
+    if args.suite == 'freedom_local_ssm_grid':
+        from freedom_local_ssm_plan import build_grid_plan as selected_plan
+    elif args.suite == 'freedom_local_ssm':
         from freedom_local_ssm_plan import build_plan as selected_plan
     elif args.suite == 'freedom_local_content':
         from freedom_local_content_plan import build_plan as selected_plan
