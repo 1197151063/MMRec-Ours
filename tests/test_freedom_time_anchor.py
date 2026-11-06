@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import scipy.sparse as sp
@@ -91,13 +92,48 @@ class TimeAnchorModelTest(unittest.TestCase):
             rows.extend([f'{u}\t22\t-2\t1', f'{u}\t23\t-3\t2'])
         (data / 'baby.inter').write_text('\n'.join(rows) + '\n')
         output = workspace / 'runs'
-        command = [sys.executable, str(ROOT / 'experiments/run_night.py'), '--suite', 'freedom_time_anchor',
+        command = [sys.executable, str(ROOT / 'experiments/run_night.py'), '--suite', 'freedom_time_anchor_no_ui',
                    '--data-path', str(data.parent), '--output', str(output), '--cpu', '--epochs', '1',
                    '--hours', '.1', '--limit', '1']
         run = subprocess.run(command, capture_output=True, text=True, timeout=120)
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
         self.assertEqual(json.loads((output / 'summary.json').read_text())[0]['state'], 'complete')
         self.assertFalse(list(output.rglob('*.pth')))
+        jobs = json.loads((output / 'manifest.json').read_text())['jobs']
+        self.assertEqual(len(jobs), 1)  # --limit selects only the first no-UI job.
+        self.assertEqual(jobs[0]['overrides']['n_ui_layers'], 0)
+        sys.path.insert(0, str(ROOT / 'experiments'))
+        from freedom_time_anchor_plan import build_no_ui_plan
+        plan = build_no_ui_plan()
+        self.assertEqual(len(plan), 3)
+        self.assertEqual([j['overrides']['group_strength'] for j in plan], [.1, .3, 1.])
+        self.assertTrue(all(j['overrides']['n_ui_layers'] == 0 and
+                            j['overrides']['personal_reg_weight'] == 0. and
+                            j['overrides']['seed'] == 999 for j in plan))
+
+    def test_no_ui_uses_direct_user_sum_and_only_item_propagation(self):
+        model = FreedomTimeAnchor(dict(self.config, n_ui_layers=0, dropout=.8,
+                                       group_strength=1.), self.loader)
+        batch = torch.tensor([[0, 1, 2], [0, 2, 3], [10, 11, 12]])
+        with patch('torch.multinomial', side_effect=AssertionError('Unused UI edge sampling')):
+            model.pre_epoch_processing()
+        self.assertIsNone(model.masked_adj)
+        with patch('torch.sparse.mm', wraps=torch.sparse.mm) as multiply:
+            users, items = model.forward(None)
+        self.assertEqual(multiply.call_count, model.n_layers)
+        for call in multiply.call_args_list:
+            self.assertIs(call.args[0], model.mm_adj)
+        expected = model.user_embedding.weight + model.group_embedding(model.anchor_group_ids)
+        torch.testing.assert_close(users, expected, rtol=0, atol=0)
+        h = torch.sparse.mm(model.mm_adj, model.item_id_embedding.weight)
+        torch.testing.assert_close(items, model.item_id_embedding.weight + h)
+        torch.testing.assert_close(model.full_sort_predict([batch[0]]), users[batch[0]] @ items.T)
+        loss = model.calculate_loss(batch)[0]
+        loss.backward()
+        for parameter in (model.user_embedding.weight, model.group_embedding.weight,
+                          model.item_id_embedding.weight):
+            self.assertTrue(torch.isfinite(parameter.grad).all())
+            self.assertGreater(float(parameter.grad.abs().sum()), 0.)
 
 
 if __name__ == '__main__':

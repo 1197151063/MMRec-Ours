@@ -38,11 +38,14 @@ class FreedomTimeAnchor(FREEDOM):
             sizes = np.bincount(labels[labels >= 0])
             getLogger().info('Time-anchor groups: source=TRAIN_REVIEW_TIMESTAMPS groups=%d '
                              'sizes_min_median_max=%s anchors_sha256=%s beta=%g personal_reg=%g; '
-                             'injection=before_UI_propagation; timestamps are not item release dates',
+                             'injection=user_input; timestamps are not item release dates',
                              groups, [int(sizes.min()), float(np.median(sizes)), int(sizes.max())],
                              hashlib.sha256(anchors.tobytes()).hexdigest(),
                              self.group_strength, self.personal_reg_weight)
         self._group_batches = 0
+        getLogger().info('FreedomTimeAnchor representation: UI_layers=%d MM_layers=%d; '
+                         'UI_layers=0 uses user_id + beta * group directly',
+                         self.n_ui_layers, self.n_layers)
 
     def user_input(self):
         personal = self.user_embedding.weight
@@ -51,10 +54,19 @@ class FreedomTimeAnchor(FREEDOM):
         shared = self.group_embedding(self.anchor_group_ids.clamp_min(0))
         return personal + self.group_strength * shared * self.group_active_users[:, None]
 
+    def pre_epoch_processing(self):
+        if self.n_ui_layers == 0:
+            # No UI propagation consumes this graph, so do not prune its edges.
+            self.masked_adj = None
+            return
+        super().pre_epoch_processing()
+
     def forward(self, adj):
         h = self.item_id_embedding.weight
         for _ in range(self.n_layers):
             h = torch.sparse.mm(self.mm_adj, h)
+        if self.n_ui_layers == 0:
+            return self.user_input(), self.item_id_embedding.weight + h
         x = torch.cat((self.user_input(), self.item_id_embedding.weight), dim=0)
         layers = [x]
         for _ in range(self.n_ui_layers):

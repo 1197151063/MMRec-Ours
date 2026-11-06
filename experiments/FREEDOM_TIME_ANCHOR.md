@@ -53,3 +53,36 @@ tail -F freedom-time-anchor-1.log \
 The first experiment log reports the group count, group sizes, and anchor hash.
 After completion, collect `manifest.json`, `summary.json`, and `summary.csv`
 from the output directory. Epoch selection uses validation Recall@20.
+
+## Direct user embedding without UI propagation
+
+The additional `freedom_time_anchor_no_ui` suite keeps the same TRAIN anchors,
+ordinary initialization, loss and item branch. It sets `n_ui_layers: 0`, so
+the final user representation is directly
+`user_id_embedding + beta * group_embedding[group[user]]`. No neighborhood
+aggregation or degree-sensitive edge pruning runs on the user-item graph.
+The inherited FREEDOM constructor still prepares its UI adjacency; it is unused
+in this mode. This is not a fully graph-free model: the item representation is
+`item_id_embedding + MM_adj^n_mm_layers @ item_id_embedding`.
+
+The objective remains the original FREEDOM item BPR plus `reg_weight` times
+visual/textual BPR. Three runs use beta 0.1/0.3/1.0, training seed 999 and no
+extra personal penalty, matching the three unregularized UI-enabled settings
+above. Beta 1.0 is the literal `user_id + group` sum. No baseline or UI-enabled
+configuration is rerun; compare against the corresponding previous results.
+No recommendation improvement has been measured by the CPU smoke test.
+
+Run in a fresh output directory:
+
+```bash
+git pull --ff-only
+nohup bash experiments/run_freedom_time_anchor_no_ui.sh /root/autodl-tmp/MMRec-Ours/data 0 \
+  night_runs/freedom-time-anchor-no-ui-1 baby > freedom-time-anchor-no-ui-1.log 2>&1 &
+```
+
+View the queue and first experiment logs:
+
+```bash
+tail -F freedom-time-anchor-no-ui-1.log \
+  night_runs/freedom-time-anchor-no-ui-1/freedom_anchor_noui_b01_s999/console.log
+```
