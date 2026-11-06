@@ -1,0 +1,15 @@
+embedding_size: 64
+feat_embed_dim: 64
+n_ui_layers: 2
+dropout: 0.8
+alpha: 0.1
+freeze_features: False
+temperature: 0.04
+num_negatives: 32
+knn_k: 10
+knn_block: 256
+knn_keep_self: True
+ii_weight: 0.0005
+local_rho: 0.9394130628134758
+local_weight: 0.1
+hyper_parameters: []
