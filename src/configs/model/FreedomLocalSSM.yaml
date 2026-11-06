@@ -8,7 +8,7 @@ lambda: 0.01
 # Independent ii graph mix: 10% image and 90% text, unchanged.
 ii_image_weight: 0.1
 freeze_features: False
-tau: 0.04
+tau: 0.2
 # SSM uses only off-diagonal batch positives, without negative sampling.
 knn_k: 10
 knn_block: 256

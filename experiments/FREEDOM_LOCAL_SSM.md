@@ -26,7 +26,7 @@ Previous models/configurations remain available.
 
 - BPR uses the batch positive and TRAIN-negative item IDs supplied by the loader.
 - Each modality SSM uses the batch user_UI and its batch positive projected
-  features, producing a B-by-B cosine score matrix divided by `tau=.04`.
+  features, producing a B-by-B cosine score matrix divided by `tau=.2`.
   Diagonal positions are positives; all off-diagonal positions are negatives:
   `mean(logsumexp(scores with diagonal masked to -inf, dim=1) - diagonal(scores))`.
   There is NO random negative sampling or negative-count parameter for SSM.
@@ -57,33 +57,38 @@ for scalar-return models; inspect the named `FreedomLocalSSM loss` entries.
 
 ## Run and logs
 
-The current recommended queue fixes local_weight=.01, alpha=.5, seed999, and
-runs the full 20-point Cartesian grid:
+The current recommended queue fixes tau=.2, lambda=.01, local_weight=.01,
+alpha=.5, seed999, and runs the full 16-point Cartesian grid:
 
-- tau: .04, .07, .1, .2
-- lambda: .001, .005, .01, .05, .1
+- ii_weight: .0001, .0005, .001, .005
+- knn_k: 5, 10, 20, 40 (each modality separately)
+
+The ii visual/text mixture remains .1/.9; self-neighbors remain enabled, so K
+includes the item itself. Keep SUM reduction exactly as before: increasing K
+also changes total loss magnitude. This is why both K and the coefficient are
+searched jointly; this run does not silently switch to mean normalization.
 
 No old baseline reruns, multiple seeds or model checkpoints. Each job allows
 1000 epochs with existing validation early stopping, capped at 60 minutes;
 the whole queue has a 24-hour ceiling. A timeout is marked as such, not counted
 as a successful final result. Actual recommendation gains remain unmeasured.
 
-`summary.csv/json` includes the explicit config_tau/config_lambda/alpha/local
-columns. `validation_ranking.csv` orders completed runs by VALID Recall@20;
+`summary.csv/json` includes explicit config_ii_weight/config_knn_k and all
+fixed tau/lambda/alpha/local settings. `validation_ranking.csv` orders completed runs by VALID Recall@20;
 `best_validation.json` records the selected overrides and marks the result
-provisional until all 20 jobs complete. Ties use the job name, never TEST scores.
-The old three-local-strength wrapper remains available for historical runs;
-use the grid wrapper below for the current request.
+provisional until all 16 jobs complete. Ties use the job name, never TEST scores.
+The old local-strength and tau/lambda wrappers remain available; use the
+item-grid wrapper below for the current request.
 
 ```bash
 cd /root/autodl-tmp/MMRec-Ours
 git pull --ff-only
-run="idbpr-ssm-grid-$(date +%Y%m%d-%H%M%S)"
-nohup bash experiments/run_freedom_local_ssm_grid.sh \
+run="idbpr-ii-grid-$(date +%Y%m%d-%H%M%S)"
+nohup bash experiments/run_freedom_local_ssm_item_grid.sh \
   /root/autodl-tmp/MMRec-Ours/data 0 "night_runs/$run" baby > "$run.log" 2>&1 &
 echo "Run: $run"
 # View queue and first training job; Ctrl-C stops tail, not training.
-tail -F "$run.log" "night_runs/$run/idbpr_batchssm_tau0.04_lambda0.001_s999/console.log"
+tail -F "$run.log" "night_runs/$run/idbpr_batchssm_ii0.0001_k5_s999/console.log"
 ```
 
 Return manifest.json, summary.csv, summary.json, validation_ranking.csv and

@@ -19,3 +19,17 @@ def build_grid_plan(seeds=(999,)):
                  overrides=dict(seed=seed, tau=tau, **{'lambda': weight}, alpha=.5,
                                 local_rho=math.exp(-1 / 16), local_weight=.01))
             for seed in seeds for tau in TAUS for weight in LAMBDAS]
+
+
+II_WEIGHTS = (.0001, .0005, .001, .005)
+II_KS = (5, 10, 20, 40)
+
+
+def build_item_grid_plan(seeds=(999,)):
+    return [dict(name=f'idbpr_batchssm_ii{weight:g}_k{k}_s{seed}', model='FreedomLocalSSM',
+                 hypothesis='Item-ID constraint weight/K grid; tau=.2, lambda=.01, local=.01, alpha=.5; validation Recall@20 selection',
+                 overrides=dict(seed=seed, tau=.2, **{'lambda': .01}, alpha=.5,
+                                local_rho=math.exp(-1 / 16), local_weight=.01,
+                                ii_weight=weight, knn_k=k, ii_image_weight=.1,
+                                knn_keep_self=True))
+            for seed in seeds for weight in II_WEIGHTS for k in II_KS]
