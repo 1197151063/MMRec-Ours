@@ -1,0 +1,63 @@
+{
+  "method": "EASE (Steck, WWW 2019)",
+  "source": "TRAIN_ONLY",
+  "dataset": "baby",
+  "train_edges": 118551,
+  "shape": [
+    19445,
+    7050
+  ],
+  "input_sha256": "e0abb033ea5cc538bb2becd8c3dc50b619f28f7974ba61f5ed11ce27cf405940",
+  "protocol": "Full catalog; mask TRAIN only; macro user Recall/NDCG; validation selects ridge; no train+valid refit",
+  "candidates": [
+    {
+      "ridge": 10.0,
+      "fit_seconds": 9.136117125,
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.04437971345531129,
+        "recall@20": 0.06161562916384206,
+        "ndcg@10": 0.027236059308052063,
+        "ndcg@20": 0.03166748583316803
+      },
+      "total_seconds": 19.049724958
+    },
+    {
+      "ridge": 100.0,
+      "fit_seconds": 9.173629625,
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.057198937173223614,
+        "recall@20": 0.0793766300554678,
+        "ndcg@10": 0.03348935395479202,
+        "ndcg@20": 0.03920010104775429
+      },
+      "total_seconds": 19.371174042
+    },
+    {
+      "ridge": 1000.0,
+      "fit_seconds": 9.231314542,
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.05711616402796655,
+        "recall@20": 0.08164970796752746,
+        "ndcg@10": 0.032509028911590576,
+        "ndcg@20": 0.038760703057050705
+      },
+      "total_seconds": 19.157406542000004
+    }
+  ],
+  "test": null,
+  "selected": {
+    "ridge": 1000.0,
+    "fit_seconds": 9.231314542,
+    "valid": {
+      "users": 19445,
+      "recall@10": 0.05711616402796655,
+      "recall@20": 0.08164970796752746,
+      "ndcg@10": 0.032509028911590576,
+      "ndcg@20": 0.038760703057050705
+    },
+    "total_seconds": 19.157406542000004
+  }
+}
