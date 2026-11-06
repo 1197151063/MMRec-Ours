@@ -1,0 +1,19 @@
+{
+  "rule": "Earliest TRAIN-observed consumed-item anchor",
+  "groups": 2808,
+  "users": 19445,
+  "train_edges": 118551,
+  "group_parameters_dim64": 179712,
+  "adjacent_same_group": 0.2511314544332442,
+  "size_null": 0.0022227912834606113,
+  "group_size_quantiles": [
+    1.0,
+    2.0,
+    15.0,
+    312.0
+  ],
+  "anchors_sha256": "2802e8e16a0f90278e16ede45af17668981ec2798a3f8b7d1bd1c045194edd8a",
+  "input_sha256": "e0abb033ea5cc538bb2becd8c3dc50b619f28f7974ba61f5ed11ce27cf405940",
+  "seconds": 0.12674891700000002,
+  "exactly_matches_selected_candidate": true
+}
