@@ -98,6 +98,27 @@ class SpectralCodeModelTest(unittest.TestCase):
             other.mm_adj = model.mm_adj.to_dense()[pi][:, pi].to_sparse()
         torch.testing.assert_close(other.full_sort_predict([torch.arange(3)]), original[pu][:, pi])
 
+    @unittest.skipUnless(torch.cuda.is_available(), 'CUDA is required to reproduce mixed-device initialization')
+    def test_cuda_constructor_calibration_before_outer_model_to(self):
+        device = torch.device('cuda:0')
+        batch = torch.tensor([[0, 1, 2], [0, 2, 4], [10, 11, 12]], device=device)
+        for sides, layers in [('user', 0), ('both', 0), ('both', 2)]:
+            with self.subTest(sides=sides, layers=layers):
+                config = dict(self.config, device=device, graph_sides=sides, n_ui_layers=layers)
+                # Deliberately construct BEFORE the same outer .to used in quick_start.
+                model = FreedomSpectralCode(config, self.loader)
+                for value in (model.user_embedding.weight, model.item_id_embedding.weight,
+                              model.user_codes, model.item_codes, model.code_scale,
+                              model.code_projector.weight):
+                    self.assertEqual(value.device, device)
+                model.to(device)
+                model.pre_epoch_processing()
+                loss = model.calculate_loss(batch)[0]
+                self.assertTrue(torch.isfinite(loss))
+                loss.backward()
+                self.assertTrue(torch.isfinite(model.code_projector.weight.grad).all())
+                self.assertEqual(model.full_sort_predict([batch[0]]).device, device)
+
     def test_three_job_cpu_queue_without_checkpoints_or_timestamps(self):
         workspace = Path(self.folder.name)
         data = workspace / 'data/baby'; data.mkdir(parents=True)

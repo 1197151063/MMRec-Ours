@@ -26,6 +26,11 @@ class FreedomSpectralCode(FREEDOM):
         self.register_buffer('code_scale', torch.tensor(1., device=self.device))
         self.code_projector = None
         if self.graph_strength:
+            # quick_start calls model.to(device) only AFTER this constructor.
+            # FREEDOM creates ID tables on CPU, while codes/masks already use
+            # config.device. Align them before the initialization calibration.
+            self.user_embedding.to(self.device)
+            self.item_id_embedding.to(self.device)
             started = time.monotonic()
             r = dataset.inter_matrix(form='csr').tocsr()
             user_codes, item_codes, singular = build_spectral_coordinates(
