@@ -1,0 +1,32 @@
+{
+  "rule": "Normalized TRAIN bipartite SVD, row-normalized left singular vectors, MiniBatchKMeans",
+  "groups": 16,
+  "rank": 64,
+  "group_seed": 2026,
+  "train_edges": 118551,
+  "users": 19445,
+  "adjacent_same_group": 0.1554721250771446,
+  "size_null": 0.07212689682401939,
+  "group_sizes": [
+    349,
+    2279,
+    1750,
+    1273,
+    1653,
+    1137,
+    953,
+    693,
+    1170,
+    1170,
+    619,
+    1180,
+    664,
+    1505,
+    1466,
+    1584
+  ],
+  "labels_sha256": "4011714330d613a5f63ba012d9ff34b1f14d5cd149a1739ced0700703e84f186",
+  "input_sha256": "e0abb033ea5cc538bb2becd8c3dc50b619f28f7974ba61f5ed11ce27cf405940",
+  "seconds": 0.5978163750000001,
+  "exactly_matches_selected_candidate": true
+}

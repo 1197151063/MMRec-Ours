@@ -47,7 +47,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data-path', required=True)
     parser.add_argument('--dataset', default='baby')
-    parser.add_argument('--suite', choices=['order', 'init', 'profile', 'corr', 'group', 'wbpr', 'relation', 'freedom_align', 'freedom_uu', 'freedom_cohort', 'freedom_semantic', 'freedom_soft_cohort', 'freedom_motif'], default='order')
+    parser.add_argument('--suite', choices=['order', 'init', 'profile', 'corr', 'group', 'wbpr', 'relation', 'freedom_align', 'freedom_uu', 'freedom_cohort', 'freedom_semantic', 'freedom_soft_cohort', 'freedom_motif', 'freedom_spectral_group'], default='order')
     parser.add_argument('--gpu-id', type=int, default=0)
     parser.add_argument('--hours', type=float, default=8)
     parser.add_argument('--job-minutes', type=float, default=45)
@@ -61,7 +61,9 @@ def main():
     args = parser.parse_args()
     if args.hours <= 0 or args.job_minutes <= 0 or args.epochs <= 0 or args.max_consecutive_failures < 1 or (args.limit is not None and args.limit < 1):
         parser.error('Budgets, epochs and limit must be positive')
-    if args.suite == 'freedom_motif':
+    if args.suite == 'freedom_spectral_group':
+        from freedom_spectral_group_plan import build_plan as selected_plan
+    elif args.suite == 'freedom_motif':
         from freedom_motif_plan import build_plan as selected_plan
     elif args.suite == 'freedom_soft_cohort':
         from freedom_soft_cohort_plan import build_plan as selected_plan
