@@ -1,0 +1,23 @@
+{
+  "source": "TRAIN_GRAPH_ONLY",
+  "users": 19445,
+  "items": 7050,
+  "train_edges": 118551,
+  "rank": 64,
+  "seconds": 0.388851458,
+  "shared_projection_parameters": 4096,
+  "singular_max": 0.9999978542327881,
+  "singular_min": 0.642500102519989,
+  "user_code_shape": [
+    19445,
+    64
+  ],
+  "item_code_shape": [
+    7050,
+    64
+  ],
+  "input_sha256": "e0abb033ea5cc538bb2becd8c3dc50b619f28f7974ba61f5ed11ce27cf405940",
+  "code_sha256": "7a9f5b9d4520a139efaa615783ba0ac519f59e8ee6d45030616559f8700c566c",
+  "numpy_version": "1.24.3",
+  "note": "Coordinate construction only; no recommendation performance measured"
+}
