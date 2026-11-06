@@ -1,0 +1,22 @@
+{
+  "source": "FROZEN_CONFIG_NATIVE_RECDATASET_EVALDATALOADER_TOPKEVALUATOR",
+  "selected": {
+    "bandwidth": 16,
+    "radius": 64,
+    "user_degree_power": 0
+  },
+  "input_sha256": "e0abb033ea5cc538bb2becd8c3dc50b619f28f7974ba61f5ed11ce27cf405940",
+  "valid": {
+    "recall@10": 0.148,
+    "recall@20": 0.1641,
+    "ndcg@10": 0.1244,
+    "ndcg@20": 0.1285
+  },
+  "test": {
+    "recall@10": 0.1478,
+    "recall@20": 0.1633,
+    "ndcg@10": 0.1239,
+    "ndcg@20": 0.1279
+  },
+  "matches_probe": true
+}
