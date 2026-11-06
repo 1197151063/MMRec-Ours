@@ -1,0 +1,10 @@
+{
+  "train_edges": 118551,
+  "users": 19445,
+  "bridge_edges": 388900,
+  "isolated_users": 0,
+  "seconds": 25.311833167,
+  "inter_sha256": "e0abb033ea5cc538bb2becd8c3dc50b619f28f7974ba61f5ed11ce27cf405940",
+  "no_self_edges": true,
+  "no_direct_train_overlap": true
+}
