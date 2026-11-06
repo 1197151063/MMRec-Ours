@@ -1,0 +1,379 @@
+{
+  "arguments": {
+    "data_path": "/Users/chenyijun/Downloads/LightMMRec/data",
+    "dataset": "baby",
+    "output": "experiments/reports/baby_user_graph_motifs.json",
+    "pairs": 2500
+  },
+  "input_sha256": {
+    "/Users/chenyijun/Downloads/LightMMRec/data/baby/baby.inter": "e0abb033ea5cc538bb2becd8c3dc50b619f28f7974ba61f5ed11ce27cf405940",
+    "/Users/chenyijun/Downloads/LightMMRec/data/baby/text_feat.npy": "6667f2ad655c9ecc97cb3383f58988864ef51ec0b39c158b15986c66769f2dc4"
+  },
+  "forensics": {
+    "note": "Full-history item minima are forensics ONLY, not training features. Numeric item order is not used in candidate graphs.",
+    "full_minimum_item_nondecreasing_fraction": 1.0,
+    "distinct_full_minimum_items": 2562,
+    "full_minimum_item_group_size_quantiles": [
+      1.0,
+      2.0,
+      16.0,
+      31.0,
+      315.0
+    ],
+    "adjacent_train_shared_fraction": 0.4443530137831722,
+    "adjacent_full_shared_fraction": 0.8732256737296853,
+    "adjacent_same_full_minimum_item_fraction": 0.8682884180209833,
+    "among_adjacent_without_train_overlap": {
+      "pairs": 10804,
+      "full_shared_fraction": 0.771843761569789,
+      "same_full_minimum_fraction": 0.7674009626064421
+    }
+  },
+  "controls": {
+    "eligible_adjacent_no_shared_item": 10804,
+    "sampled": 2500,
+    "matched": 2498,
+    "control": "same target degree, closest mean log item popularity in a 128-user random pool; no shared item; ID separation >256"
+  },
+  "scores": {
+    "fourhop_weighted": {
+      "all_no_train_overlap": {
+        "pairs": 2498,
+        "near_mean": 0.006667241919785738,
+        "far_mean": 0.0043353429064154625,
+        "difference": 0.002331898780539632,
+        "near_wins": 0.5372297838270617,
+        "ties": 0.09087269815852682,
+        "positive_near": 0.8390712570056045,
+        "positive_far": 0.7986389111289032
+      },
+      "forensic_same_full_anchor": {
+        "pairs": 1920,
+        "near_mean": 0.00689501641318202,
+        "far_mean": 0.0047599137760698795,
+        "difference": 0.002135102404281497,
+        "near_wins": 0.5494791666666666,
+        "ties": 0.06666666666666667,
+        "positive_near": 0.8776041666666666,
+        "positive_far": 0.8390625
+      },
+      "forensic_different_full_anchor": {
+        "pairs": 578,
+        "near_mean": 0.005910620093345642,
+        "far_mean": 0.002925002947449684,
+        "difference": 0.0029856169130653143,
+        "near_wins": 0.49653979238754326,
+        "ties": 0.17128027681660898,
+        "positive_near": 0.7110726643598616,
+        "positive_far": 0.6643598615916955
+      }
+    },
+    "fourhop_binary_common_consumers": {
+      "all_no_train_overlap": {
+        "pairs": 2498,
+        "near_mean": 0.023848790675401688,
+        "far_mean": 0.019026566296815872,
+        "difference": 0.004822224844247103,
+        "near_wins": 0.5276220976781425,
+        "ties": 0.09087269815852682,
+        "positive_near": 0.8390712570056045,
+        "positive_far": 0.7986389111289032
+      },
+      "forensic_same_full_anchor": {
+        "pairs": 1920,
+        "near_mean": 0.025803307071328163,
+        "far_mean": 0.02066599205136299,
+        "difference": 0.005137315485626459,
+        "near_wins": 0.54375,
+        "ties": 0.06666666666666667,
+        "positive_near": 0.8776041666666666,
+        "positive_far": 0.8390625
+      },
+      "forensic_different_full_anchor": {
+        "pairs": 578,
+        "near_mean": 0.017356274649500847,
+        "far_mean": 0.013580716215074062,
+        "difference": 0.003775558201596141,
+        "near_wins": 0.4740484429065744,
+        "ties": 0.17128027681660898,
+        "positive_near": 0.7110726643598616,
+        "positive_far": 0.6643598615916955
+      }
+    },
+    "fourhop_rare_bridge": {
+      "all_no_train_overlap": {
+        "pairs": 2498,
+        "near_mean": 0.00407900769046533,
+        "far_mean": 0.0020126164475622933,
+        "difference": 0.002066391242903037,
+        "near_wins": 0.5400320256204963,
+        "ties": 0.09087269815852682,
+        "positive_near": 0.8390712570056045,
+        "positive_far": 0.7986389111289032
+      },
+      "forensic_same_full_anchor": {
+        "pairs": 1920,
+        "near_mean": 0.004036071254674695,
+        "far_mean": 0.0022199782780951333,
+        "difference": 0.0018160929765795614,
+        "near_wins": 0.55,
+        "ties": 0.06666666666666667,
+        "positive_near": 0.8776041666666666,
+        "positive_far": 0.8390625
+      },
+      "forensic_different_full_anchor": {
+        "pairs": 578,
+        "near_mean": 0.004221633913160867,
+        "far_mean": 0.0013238020624013035,
+        "difference": 0.002897831850759564,
+        "near_wins": 0.5069204152249135,
+        "ties": 0.17128027681660898,
+        "positive_near": 0.7110726643598616,
+        "positive_far": 0.6643598615916955
+      }
+    },
+    "fourhop_strongest_bridge": {
+      "all_no_train_overlap": {
+        "pairs": 2498,
+        "near_mean": 2.8628786822082475e-05,
+        "far_mean": 1.825308208935894e-05,
+        "difference": 1.0375708370702341e-05,
+        "near_wins": 0.5256204963971177,
+        "ties": 0.09407526020816653,
+        "positive_near": 0.8390712570056045,
+        "positive_far": 0.7986389111289032
+      },
+      "forensic_same_full_anchor": {
+        "pairs": 1920,
+        "near_mean": 2.696755836950615e-05,
+        "far_mean": 1.8821370758814737e-05,
+        "difference": 8.146187610691413e-06,
+        "near_wins": 0.5385416666666667,
+        "ties": 0.06927083333333334,
+        "positive_near": 0.8776041666666666,
+        "positive_far": 0.8390625
+      },
+      "forensic_different_full_anchor": {
+        "pairs": 578,
+        "near_mean": 3.4147062251577154e-05,
+        "far_mean": 1.636532942939084e-05,
+        "difference": 1.7781732822186314e-05,
+        "near_wins": 0.4826989619377163,
+        "ties": 0.17647058823529413,
+        "positive_near": 0.7110726643598616,
+        "positive_far": 0.6643598615916955
+      }
+    },
+    "collaborative_single_best_item_pair": {
+      "all_no_train_overlap": {
+        "pairs": 2498,
+        "near_mean": 0.02608565054833889,
+        "far_mean": 0.01949273608624935,
+        "difference": 0.006592912599444389,
+        "near_wins": 0.5324259407526021,
+        "ties": 0.09647718174539632,
+        "positive_near": 0.8390712570056045,
+        "positive_far": 0.7978382706164932
+      },
+      "forensic_same_full_anchor": {
+        "pairs": 1920,
+        "near_mean": 0.027477137744426727,
+        "far_mean": 0.020754141733050346,
+        "difference": 0.00672299275174737,
+        "near_wins": 0.5510416666666667,
+        "ties": 0.07291666666666667,
+        "positive_near": 0.8776041666666666,
+        "positive_far": 0.8380208333333333
+      },
+      "forensic_different_full_anchor": {
+        "pairs": 578,
+        "near_mean": 0.021463407203555107,
+        "far_mean": 0.015302595682442188,
+        "difference": 0.006160812918096781,
+        "near_wins": 0.47058823529411764,
+        "ties": 0.17474048442906576,
+        "positive_near": 0.7110726643598616,
+        "positive_far": 0.6643598615916955
+      }
+    },
+    "collaborative_symmetric_best_match": {
+      "all_no_train_overlap": {
+        "pairs": 2498,
+        "near_mean": 0.009066978807857987,
+        "far_mean": 0.006615833680083367,
+        "difference": 0.00245114512777462,
+        "near_wins": 0.5456365092073658,
+        "ties": 0.09167333867093674,
+        "positive_near": 0.8390712570056045,
+        "positive_far": 0.7978382706164932
+      },
+      "forensic_same_full_anchor": {
+        "pairs": 1920,
+        "near_mean": 0.009637290048632015,
+        "far_mean": 0.0071619051586291485,
+        "difference": 0.0024753848900028667,
+        "near_wins": 0.5598958333333334,
+        "ties": 0.0671875,
+        "positive_near": 0.8776041666666666,
+        "positive_far": 0.8380208333333333
+      },
+      "forensic_different_full_anchor": {
+        "pairs": 578,
+        "near_mean": 0.007172519322933877,
+        "far_mean": 0.004801893820554126,
+        "difference": 0.0023706255023797514,
+        "near_wins": 0.4982698961937716,
+        "ties": 0.17301038062283736,
+        "positive_near": 0.7110726643598616,
+        "positive_far": 0.6643598615916955
+      }
+    },
+    "text_single_best_item_pair": {
+      "all_no_train_overlap": {
+        "pairs": 2498,
+        "near_mean": 0.5029807090759277,
+        "far_mean": 0.48313045501708984,
+        "difference": 0.01985030435025692,
+        "near_wins": 0.544435548438751,
+        "ties": 0.0028022417934347476,
+        "positive_near": 1.0,
+        "positive_far": 1.0
+      },
+      "forensic_same_full_anchor": {
+        "pairs": 1920,
+        "near_mean": 0.5077794194221497,
+        "far_mean": 0.4881967008113861,
+        "difference": 0.019582726061344147,
+        "near_wins": 0.546875,
+        "ties": 0.0020833333333333333,
+        "positive_near": 1.0,
+        "positive_far": 1.0
+      },
+      "forensic_different_full_anchor": {
+        "pairs": 578,
+        "near_mean": 0.48704037070274353,
+        "far_mean": 0.46630120277404785,
+        "difference": 0.020739147439599037,
+        "near_wins": 0.5363321799307958,
+        "ties": 0.005190311418685121,
+        "positive_near": 1.0,
+        "positive_far": 1.0
+      }
+    },
+    "text_symmetric_best_match": {
+      "all_no_train_overlap": {
+        "pairs": 2498,
+        "near_mean": 0.3837170954629648,
+        "far_mean": 0.37236436844182264,
+        "difference": 0.011352727021142137,
+        "near_wins": 0.5544435548438751,
+        "ties": 0.0,
+        "positive_near": 1.0,
+        "positive_far": 1.0
+      },
+      "forensic_same_full_anchor": {
+        "pairs": 1920,
+        "near_mean": 0.38648482592155536,
+        "far_mean": 0.3749832583668952,
+        "difference": 0.011501567554660141,
+        "near_wins": 0.5625,
+        "ties": 0.0,
+        "positive_near": 1.0,
+        "positive_far": 1.0
+      },
+      "forensic_different_full_anchor": {
+        "pairs": 578,
+        "near_mean": 0.3745232503410029,
+        "far_mean": 0.36366494170109703,
+        "difference": 0.010858308639905856,
+        "near_wins": 0.527681660899654,
+        "ties": 0.0,
+        "positive_near": 1.0,
+        "positive_far": 1.0
+      }
+    },
+    "sixhop_shared_inferred_item": {
+      "all_no_train_overlap": {
+        "pairs": 2498,
+        "near_mean": 0.008754979819059372,
+        "far_mean": 0.004632812924683094,
+        "difference": 0.004122166894376278,
+        "near_wins": 0.17133706965572457,
+        "ties": 0.7101681345076061,
+        "positive_near": 0.18294635708566853,
+        "positive_far": 0.1321056845476381
+      },
+      "forensic_same_full_anchor": {
+        "pairs": 1920,
+        "near_mean": 0.009067950770258904,
+        "far_mean": 0.0048389616422355175,
+        "difference": 0.004228989128023386,
+        "near_wins": 0.17916666666666667,
+        "ties": 0.6994791666666667,
+        "positive_near": 0.19166666666666668,
+        "positive_far": 0.1359375
+      },
+      "forensic_different_full_anchor": {
+        "pairs": 578,
+        "near_mean": 0.0077153537422418594,
+        "far_mean": 0.003948029596358538,
+        "difference": 0.0037673241458833218,
+        "near_wins": 0.1453287197231834,
+        "ties": 0.745674740484429,
+        "positive_near": 0.15397923875432526,
+        "positive_far": 0.11937716262975778
+      }
+    }
+  },
+  "fourhop_rare_bridge_graph": {
+    "pairs": 512,
+    "near_top20": 0.005859375,
+    "near_top80": 0.013671875,
+    "matched_far_top20": 0.0,
+    "matched_far_top80": 0.0
+  },
+  "sixhop_inferred_item_graph": {
+    "pairs": 512,
+    "near_top20": 0.001953125,
+    "near_top80": 0.01171875,
+    "matched_far_top20": 0.001953125,
+    "matched_far_top80": 0.005859375
+  },
+  "direct_shared_item_structure": {
+    "adjacent_shared_edges": 8978,
+    "shared_item_train_degree_quantiles": [
+      12.0,
+      66.0,
+      205.0
+    ],
+    "all_interaction_item_degree_quantiles": [
+      6.0,
+      31.0,
+      149.0
+    ],
+    "shared_is_users_most_popular_item_fraction": 0.33036310982401423
+  },
+  "direct_graph_audit": {
+    "shared_cosine": {
+      "query_users": 4096,
+      "adjacent_pair_top20_coverage": 0.06787109375,
+      "adjacent_pair_top80_coverage": 0.205322265625
+    },
+    "rare_item_cosine": {
+      "query_users": 4096,
+      "adjacent_pair_top20_coverage": 0.091796875,
+      "adjacent_pair_top80_coverage": 0.2177734375
+    },
+    "log_popular_item_cosine": {
+      "query_users": 4096,
+      "adjacent_pair_top20_coverage": 0.0595703125,
+      "adjacent_pair_top80_coverage": 0.177001953125
+    },
+    "popular_item_cosine": {
+      "query_users": 4096,
+      "adjacent_pair_top20_coverage": 0.05322265625,
+      "adjacent_pair_top80_coverage": 0.15380859375
+    }
+  },
+  "seconds": 9.481508083
+}
