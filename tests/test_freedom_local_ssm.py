@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 import unittest
+from unittest import mock
 
 import torch
 from torch.nn import functional as F
@@ -44,24 +45,27 @@ class FreedomLocalSSMTest(unittest.TestCase):
         users, pos, neg = self.batch
         u, i = model.forward(model.masked_adj)
         bpr = F.softplus((u[users] * (i[neg] - i[pos])).sum(-1)).mean()
-        state = torch.get_rng_state()
-        sampled = torch.randint(model.n_items, (users.numel(), model.num_negatives))
-        torch.set_rng_state(state)
         visual = model.image_trs(model.image_embedding.weight)
         textual = model.text_trs(model.text_embedding.weight)
-        visual_ssm = model.ssm_loss(u[users], visual[pos], visual[sampled], model.temperature)
-        textual_ssm = model.ssm_loss(u[users], textual[pos], textual[sampled], model.temperature)
+        def expected_ssm(user, item):
+            scores = F.normalize(user, dim=-1) @ F.normalize(item, dim=-1).t() / model.tau
+            off_diagonal = ~torch.eye(len(user), dtype=torch.bool)
+            return (torch.logsumexp(scores[off_diagonal].reshape(len(user), -1), dim=1) - scores.diagonal()).mean()
+        visual_ssm = expected_ssm(u[users], visual[pos])
+        textual_ssm = expected_ssm(u[users], textual[pos])
         # Verify [B,K] edge weights and raw item-ID anchors, not propagated items.
         raw = model.item_id_embedding.weight
         ii = bpr.new_zeros(())
-        for alpha, features, ids in ((model.alpha, model.v_feat, model.image_knn_idx),
-                                     (1-model.alpha, model.t_feat, model.text_knn_idx)):
+        for alpha, features, ids in ((model.ii_image_weight, model.v_feat, model.image_knn_idx),
+                                     (1-model.ii_image_weight, model.t_feat, model.text_knn_idx)):
             normalized = F.normalize(features, dim=-1)
             weights = (normalized[pos, None] * normalized[ids[pos]]).sum(-1)
             scores = (raw[pos, None] * raw[ids[pos]]).sum(-1)
             ii = ii + alpha * (weights * F.softplus(-scores)).sum()
-        expected = bpr + model.modal_weight * (visual_ssm + textual_ssm) + model.ii_weight * ii + model.local_weight * model.local_loss()
-        actual = model.calculate_loss(self.batch)
+        expected = bpr + model.ssm_weight * (model.alpha * textual_ssm + (1-model.alpha) * visual_ssm) + model.ii_weight * ii + model.local_weight * model.local_loss()
+        # No hidden SSM random sampler; BPR uses the supplied batch negatives.
+        with mock.patch('models.freedomlocalssm.torch.randint', side_effect=AssertionError('SSM sampled negatives')):
+            actual = model.calculate_loss(self.batch)
         torch.testing.assert_close(actual, expected)
         for key, value in (('bpr', bpr), ('visual_ssm', visual_ssm), ('textual_ssm', textual_ssm), ('ii', ii)):
             self.assertAlmostEqual(model.last_loss_terms[key], value.detach().item(), places=4)
@@ -81,7 +85,7 @@ class FreedomLocalSSMTest(unittest.TestCase):
             if name != 'item_id_embedding.weight':
                 self.assertIsNone(parameter.grad, name)
         model.zero_grad(set_to_none=True)
-        model.modal_weight = model.ii_weight = model.local_weight = 0.
+        model.ssm_weight = model.ii_weight = model.local_weight = 0.
         users, pos, neg = self.batch
         u, i = model.forward()
         expected = F.softplus((u[users] * (i[neg] - i[pos])).sum(-1)).mean()
@@ -98,6 +102,33 @@ class FreedomLocalSSMTest(unittest.TestCase):
         model.dropout = .5
         model.pre_epoch_processing()
         self.assertEqual(model.masked_adj._nnz(), int(model.edge_values.numel() * .5) * 2)
+
+    def test_ssm_off_diagonal_duplicates_singleton_and_alpha_endpoints(self):
+        model = FreedomLocalSSM(self.config, self.loader)
+        user = torch.randn(3, 6, requires_grad=True)
+        item = torch.randn(3, 6, requires_grad=True)
+        with torch.no_grad():
+            item[2].copy_(item[0])  # Duplicates are not specially masked.
+        scores = F.normalize(user, dim=-1) @ F.normalize(item, dim=-1).t() / model.tau
+        expected = torch.stack([torch.logsumexp(torch.cat((scores[r, :r], scores[r, r+1:])), 0)
+                                - scores[r, r] for r in range(3)]).mean()
+        loss = model.ssm_loss(user, item)
+        torch.testing.assert_close(loss, expected)
+        loss.backward()
+        self.assertTrue(torch.isfinite(user.grad).all())
+        self.assertTrue(torch.isfinite(item.grad).all())
+        singleton = model.ssm_loss(user[:1], item[:1])
+        self.assertEqual(singleton.item(), 0.)
+        singleton.backward()
+        # Alpha weights TEXT SSM only; ii keeps its independent image mix.
+        for alpha in (0., 1.):
+            model.alpha = alpha
+            actual = model.calculate_loss(self.batch)
+            terms = model.last_loss_terms
+            selected = terms['textual_ssm'] if alpha else terms['visual_ssm']
+            expected = terms['bpr'] + model.ssm_weight * selected + model.ii_weight * terms['ii'] + model.local_weight * terms['local']
+            self.assertAlmostEqual(actual.item(), expected, places=5)
+        self.assertFalse(hasattr(model, 'num_negatives'))
 
     def test_three_job_queue_no_checkpoints(self):
         workspace = Path(self.folder.name)

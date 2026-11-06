@@ -2,17 +2,19 @@ embedding_size: 64
 feat_embed_dim: 64
 n_ui_layers: 2
 dropout: 0.8
-# alpha weights ONLY the visual vs textual ii constraints; no feature/ID fusion.
-alpha: 0.1
+# lambda * (alpha * text_SSM + (1-alpha) * image_SSM)
+alpha: 0.5
+lambda: 0.01
+# Independent ii graph mix: 10% image and 90% text, unchanged.
+ii_image_weight: 0.1
 freeze_features: False
-temperature: 0.04
-num_negatives: 32
-modal_weight: 0.01
+tau: 0.04
+# SSM uses only off-diagonal batch positives, without negative sampling.
 knn_k: 10
 knn_block: 256
 knn_keep_self: True
 ii_weight: 0.0005
 local_rho: 0.9394130628134758
 local_weight: 0.1
-use_neg_sampling: True
+use_neg_sampling: True  # Required only by the ID BPR branch.
 hyper_parameters: []

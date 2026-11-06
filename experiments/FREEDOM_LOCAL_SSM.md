@@ -18,30 +18,34 @@ Previous models/configurations remain available.
 ## Objective
 
     L = BPR(U_UI, I_UI)
-        + modal_weight * [SSM(U_UI, image_projection) + SSM(U_UI, text_projection)]
-        + ii_weight * [alpha * alignment_image(E_item)
-                       + (1-alpha) * alignment_text(E_item)]
+        + lambda * [alpha * SSM(U_UI, text_projection)
+                    + (1-alpha) * SSM(U_UI, image_projection)]
+        + ii_weight * [ii_image_weight * alignment_image(E_item)
+                       + (1-ii_image_weight) * alignment_text(E_item)]
         + local_weight * local(E_user)
 
 - BPR uses the batch positive and TRAIN-negative item IDs supplied by the loader.
-- Each modality SSM uses user_UI, its positive projected feature, and 32 uniform
-  random catalog negatives per interaction (same negative IDs for both modalities).
-  tau=.04. This follows the user's original negative-only-denominator SSM:
-  `mean(logsumexp(negative_cosines/tau) - positive_cosine/tau)`.
-  Negatives are unfiltered (can include known positives or duplicates); the
-  positive is not explicitly added to the denominator. This is not standard
-  InfoNCE and can yield negative SSM values. No main ID SSM or modal BPR remains.
+- Each modality SSM uses the batch user_UI and its batch positive projected
+  features, producing a B-by-B cosine score matrix divided by `tau=.04`.
+  Diagonal positions are positives; all off-diagonal positions are negatives:
+  `mean(logsumexp(scores with diagonal masked to -inf, dim=1) - diagonal(scores))`.
+  There is NO random negative sampling or negative-count parameter for SSM.
+  Repeated users/items remain in the batch and are not specially masked; only
+  the diagonal is excluded, exactly as requested. This is not standard InfoNCE
+  and can yield negative SSM values. For a singleton batch the SSM contributes
+  differentiable zero because it has no off-diagonal negatives; other losses
+  still train. No main ID SSM or modal BPR remains.
 - Alignment operates on RAW item-ID embeddings E_item, not propagated item_UI
   or multimodal projections. Static separate image/text KNNs come from detached
   original features (K=10, self-neighbors retained, raw cosine weights).
   `sum_[i in batch positives,j in KNN_m(i)] weight_m(i,j)*softplus(-dot(E[i],E[j]))`.
   Correct weight indexing is [B,K], not [B,B,K]. Repeated positive anchors and
   sum reduction are retained; scale depends on batch size and K.
-- alpha=.1 ONLY weights the visual vs textual ii constraints; it does not fuse
-  features into the forward branch or weight the two modality SSMs.
-- Default modal_weight=.01 and ii_weight=.0005 are experiment starting values,
-  not tuned results. modal_weight is explicit, separate from FREEDOM's old
-  reg_weight for modality BPR; no extra norm regularizer is silently introduced.
+- alpha=.5 is the TEXT SSM weight; (1-alpha) is the IMAGE SSM weight.
+  `lambda=.01` controls their weighted sum. Neither enters the ID forward.
+  `ii_image_weight=.1` separately retains the old visual/text ii mix (.1/.9).
+- Default lambda=.01 and ii_weight=.0005 are experimental starting values,
+  not tuned results. No extra norm regularizer is silently introduced.
 - User local loss is unchanged from FreedomLocal. It explicitly uses original
   numeric user-ID adjacency on raw E_user, rho=exp(-1/16), fixed initial scale.
   Thus this variant still uses the previously disclosed numeric-order prior.
@@ -60,7 +64,7 @@ existing validation protocol. Actual recommendation gains remain unmeasured.
 ```bash
 cd /root/autodl-tmp/MMRec-Ours
 git pull --ff-only
-run="idbpr-modalssm-$(date +%Y%m%d-%H%M%S)"
+run="idbpr-batchssm-$(date +%Y%m%d-%H%M%S)"
 nohup bash experiments/run_freedom_local_ssm.sh \
   /root/autodl-tmp/MMRec-Ours/data 0 "night_runs/$run" baby > "$run.log" 2>&1 &
 echo "Run: $run"
@@ -70,6 +74,7 @@ tail -F "$run.log" "night_runs/$run/idbpr_modalssm_local_w0.01_s999/console.log"
 
 Return manifest.json, summary.csv and summary.json from that output directory.
 CPU tests verify the exact forward/objective, isolated ii gradients on raw item
-IDs, all trainable gradients, pruning/cache, pure BPR when auxiliaries are off,
+IDs, all trainable gradients, exact off-diagonal SSM, singleton batches, absence of
+SSM sampling, pruning/cache, pure BPR when auxiliaries are off,
 and a three-job synthetic one-epoch queue without checkpoints. CUDA coverage is
 conditional on hardware; CPU smoke runs do not establish recommendation quality.

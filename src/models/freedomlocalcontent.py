@@ -29,8 +29,7 @@ class FreedomLocalContent(GeneralRecommender):
         self.n_ui_layers = int(config['n_ui_layers'])
         self.dropout = float(config['dropout'])
         self.alpha = float(config['alpha'])  # Visual weight, not textual weight.
-        self.temperature = float(config['temperature'])
-        self.num_negatives = int(config['num_negatives'])
+        self._init_ssm_config(config)
         self.ii_weight = float(config['ii_weight'])
         self.local_weight = float(config['local_weight'])
         self.local_rho = float(config['local_rho'])
@@ -39,8 +38,6 @@ class FreedomLocalContent(GeneralRecommender):
             raise ValueError('Positive matching user/content dimensions and nonnegative UI layers required')
         if not 0 <= self.alpha <= 1 or not 0 <= self.dropout < 1 or not 0 <= self.local_rho <= 1:
             raise ValueError('Invalid alpha, dropout or local_rho')
-        if not math.isfinite(self.temperature) or self.temperature <= 0 or self.num_negatives < 1:
-            raise ValueError('Positive finite temperature and positive negative count required')
         if any(not math.isfinite(w) or w < 0 for w in (self.ii_weight, self.local_weight)) or self.knn_k < 1:
             raise ValueError('Nonnegative finite loss weights and positive KNN size required')
         if self.v_feat is None or self.t_feat is None:
@@ -81,6 +78,12 @@ class FreedomLocalContent(GeneralRecommender):
         self._eval_embeddings = None
         self._batches = 0
         self._log_architecture()
+
+    def _init_ssm_config(self, config):
+        self.temperature = float(config['temperature'])
+        self.num_negatives = int(config['num_negatives'])
+        if not math.isfinite(self.temperature) or self.temperature <= 0 or self.num_negatives < 1:
+            raise ValueError('Positive finite temperature and positive negative count required')
 
     def _init_item_input(self, config):
         # The content-only model has no independent item-ID parameters.
