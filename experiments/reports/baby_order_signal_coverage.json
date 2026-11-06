@@ -1,0 +1,30 @@
+{
+  "counts": {
+    "valid_edges": 20559,
+    "reachable_threehop_edges": 11898,
+    "order_hit_edges": 3255,
+    "order_hit_reachable_edges": 2214,
+    "order_hit_no_threehop_edges": 1041
+  },
+  "fractions": {
+    "threehop_coverage": 0.5787246461403764,
+    "order_hit_without_threehop_fraction": 0.31981566820276497
+  },
+  "user_degree_quantiles": {
+    "order_hit_reachable": [
+      3.0,
+      4.0,
+      10.0,
+      88.0
+    ],
+    "order_hit_no_threehop": [
+      3.0,
+      4.0,
+      6.0,
+      37.0
+    ]
+  },
+  "role": "POST_HOC_ORDER_DIAGNOSTIC_ONLY_NOT_A_MODEL_OR_TRAINING_SIGNAL",
+  "input_sha256": "e0abb033ea5cc538bb2becd8c3dc50b619f28f7974ba61f5ed11ce27cf405940",
+  "note": "No test labels evaluated. No candidate tuning by order-hit subsets. No-three-hop does not prove impossibility for all higher-order or semantic models."
+}

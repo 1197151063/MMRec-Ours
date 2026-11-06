@@ -1,0 +1,229 @@
+{
+  "source": "TRAIN_ONLY",
+  "selection": "VALID_RECALL20_ONLY",
+  "test_evaluated": false,
+  "numeric_order_used": false,
+  "note": "Fixed 8 untruncated three-hop variants plus 4 joint support variants; all candidates retained.",
+  "dataset": "baby",
+  "shape": [
+    19445,
+    7050
+  ],
+  "train_edges": 118551,
+  "input_sha256": "e0abb033ea5cc538bb2becd8c3dc50b619f28f7974ba61f5ed11ce27cf405940",
+  "candidates": [
+    {
+      "config": {
+        "family": "untruncated_three_hop",
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "formula": "R Di^-a R.T Du^-b R Di^-c"
+      },
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.05574306040235584,
+        "recall@20": 0.08251968311109478,
+        "ndcg@10": 0.031076647341251373,
+        "ndcg@20": 0.037887267768383026
+      },
+      "seconds": 0.832435625
+    },
+    {
+      "config": {
+        "family": "untruncated_three_hop",
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.5,
+        "formula": "R Di^-a R.T Du^-b R Di^-c"
+      },
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.03526068642936732,
+        "recall@20": 0.05178813258396698,
+        "ndcg@10": 0.020691100507974625,
+        "ndcg@20": 0.024962544441223145
+      },
+      "seconds": 0.975761291
+    },
+    {
+      "config": {
+        "family": "untruncated_three_hop",
+        "a": 1.0,
+        "b": 0.0,
+        "c": 0.0,
+        "formula": "R Di^-a R.T Du^-b R Di^-c"
+      },
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.04534756149824291,
+        "recall@20": 0.06659016050376297,
+        "ndcg@10": 0.026128875091671944,
+        "ndcg@20": 0.03157731890678406
+      },
+      "seconds": 0.9089408750000003
+    },
+    {
+      "config": {
+        "family": "untruncated_three_hop",
+        "a": 1.0,
+        "b": 0.0,
+        "c": 0.5,
+        "formula": "R Di^-a R.T Du^-b R Di^-c"
+      },
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.016727277179835676,
+        "recall@20": 0.026318064381833983,
+        "ndcg@10": 0.009216668084263802,
+        "ndcg@20": 0.011668763123452663
+      },
+      "seconds": 0.9467727499999996
+    },
+    {
+      "config": {
+        "family": "untruncated_three_hop",
+        "a": 0.0,
+        "b": 1.0,
+        "c": 0.0,
+        "formula": "R Di^-a R.T Du^-b R Di^-c"
+      },
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.05527972670168607,
+        "recall@20": 0.08095495230748509,
+        "ndcg@10": 0.03128610551357269,
+        "ndcg@20": 0.03784898668527603
+      },
+      "seconds": 0.9016995420000002
+    },
+    {
+      "config": {
+        "family": "untruncated_three_hop",
+        "a": 0.0,
+        "b": 1.0,
+        "c": 0.5,
+        "formula": "R Di^-a R.T Du^-b R Di^-c"
+      },
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.02539849881840111,
+        "recall@20": 0.03829739558461595,
+        "ndcg@10": 0.014866002835333347,
+        "ndcg@20": 0.018157482147216797
+      },
+      "seconds": 0.9091565000000008
+    },
+    {
+      "config": {
+        "family": "untruncated_three_hop",
+        "a": 1.0,
+        "b": 1.0,
+        "c": 0.0,
+        "formula": "R Di^-a R.T Du^-b R Di^-c"
+      },
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.03914618765994441,
+        "recall@20": 0.060341255555963716,
+        "ndcg@10": 0.022288728505373,
+        "ndcg@20": 0.027715887874364853
+      },
+      "seconds": 0.9329279579999996
+    },
+    {
+      "config": {
+        "family": "untruncated_three_hop",
+        "a": 1.0,
+        "b": 1.0,
+        "c": 0.5,
+        "formula": "R Di^-a R.T Du^-b R Di^-c"
+      },
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.016193292436542626,
+        "recall@20": 0.027285261237434032,
+        "ndcg@10": 0.008258315734565258,
+        "ndcg@20": 0.011075872927904129
+      },
+      "seconds": 1.0510069160000004
+    },
+    {
+      "config": {
+        "family": "common_item_pair_support",
+        "pair_weight": null,
+        "formula": "s2"
+      },
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.018730607696922946,
+        "recall@20": 0.029994673621569986,
+        "ndcg@10": 0.010792148299515247,
+        "ndcg@20": 0.01367658656090498
+      },
+      "seconds": 0.5025260830000011
+    },
+    {
+      "config": {
+        "family": "common_item_pair_support",
+        "pair_weight": 0.1,
+        "formula": "s1+lambda*s2"
+      },
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.05591448407596517,
+        "recall@20": 0.08191676156191456,
+        "ndcg@10": 0.031062183901667595,
+        "ndcg@20": 0.03768477588891983
+      },
+      "seconds": 1.5641941670000001
+    },
+    {
+      "config": {
+        "family": "common_item_pair_support",
+        "pair_weight": 1.0,
+        "formula": "s1+lambda*s2"
+      },
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.05557090205585962,
+        "recall@20": 0.0815622818939867,
+        "ndcg@10": 0.031033098697662354,
+        "ndcg@20": 0.037634558975696564
+      },
+      "seconds": 1.5642777920000004
+    },
+    {
+      "config": {
+        "family": "common_item_pair_support",
+        "pair_weight": 10.0,
+        "formula": "s1+lambda*s2"
+      },
+      "valid": {
+        "users": 19445,
+        "recall@10": 0.045206994085883266,
+        "recall@20": 0.06669219654948634,
+        "ndcg@10": 0.026185397058725357,
+        "ndcg@20": 0.031655363738536835
+      },
+      "seconds": 1.5240965000000006
+    }
+  ],
+  "selected": {
+    "config": {
+      "family": "untruncated_three_hop",
+      "a": 0.0,
+      "b": 0.0,
+      "c": 0.0,
+      "formula": "R Di^-a R.T Du^-b R Di^-c"
+    },
+    "valid": {
+      "users": 19445,
+      "recall@10": 0.05574306040235584,
+      "recall@20": 0.08251968311109478,
+      "ndcg@10": 0.031076647341251373,
+      "ndcg@20": 0.037887267768383026
+    },
+    "seconds": 0.832435625
+  }
+}
