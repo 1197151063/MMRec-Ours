@@ -1,12 +1,19 @@
-"""Requested ID-BPR/modality-SSM model only; one seed and three local strengths."""
+"""ID-BPR/modality-SSM plans; local-only sweep and separate later grids."""
 import math
 
 
+LOCAL_WEIGHTS = (.1, .01, .001)
+
+
 def build_plan(seeds=(999,)):
+    # Sports current stage: vary ONLY local. These are fixed starting settings,
+    # not claims about Sports-optimal tau/lambda or item constraints.
     return [dict(name=f'idbpr_modalssm_local_w{weight:g}_s{seed}', model='FreedomLocalSSM',
-                 hypothesis='ID/UI BPR + image/text SSM + raw item-ID constraint + explicit numeric-user-order local loss',
-                 overrides=dict(seed=seed, local_rho=math.exp(-1 / 16), local_weight=weight))
-            for seed in seeds for weight in (.01, .1, 1.)]
+                 hypothesis='Explicit numeric-user-order local-only sweep (.1/.01/.001); tau=.2 lambda=.01 ii=.0005 K=10 fixed; validation Recall@20 selection',
+                 overrides=dict(seed=seed, local_rho=math.exp(-1 / 16), local_weight=weight,
+                                tau=.2, **{'lambda': .01}, alpha=.5, ii_weight=.0005,
+                                knn_k=10, ii_image_weight=.1, knn_keep_self=True))
+            for seed in seeds for weight in LOCAL_WEIGHTS]
 
 
 TAUS = (.04, .07, .1, .2)

@@ -55,9 +55,29 @@ The model logs raw BPR, both SSMs, ii, local, total, weighted contributions and
 user/item RMS. The generic trainer's legacy ID/mm diagnostic slots may be NaN
 for scalar-return models; inspect the named `FreedomLocalSSM loss` entries.
 
-## Run and logs
+## Sports 当前阶段：只搜索 local
 
-The current recommended queue fixes tau=.2, lambda=.01, local_weight=.01,
+使用原来的 run_freedom_local_ssm.sh，第四个参数指定 sports。
+只搜索 local_weight=.1/.01/.001；tau=.2、lambda=.01、ii_weight=.0005、K=10、
+alpha=.5、rho=exp(-1/16)、seed999 均显式固定。这些是暂定控制参数，不宣称是 Sports 最优值。
+本轮不联合搜索 tau/lambda，待 local 选定后再进行后续搜索。
+不保存模型；默认最多1000 epochs、每组90分钟、总计5小时，沿用验证早停。
+
+```bash
+cd /root/autodl-tmp/MMRec-Ours
+git pull --ff-only
+run="sports-local-$(date +%Y%m%d-%H%M%S)"
+nohup bash experiments/run_freedom_local_ssm.sh \
+  /root/autodl-tmp/MMRec-Ours/data 0 "night_runs/$run" sports > "$run.log" 2>&1 &
+# 查看队列及第一组日志：
+tail -F "$run.log" "night_runs/$run/idbpr_modalssm_local_w0.1_s999/console.log"
+```
+
+输出仍包含 summary.csv/json、validation_ranking.csv、best_validation.json；仅按 VALID Recall@20 选参数。
+
+## 历史 Baby item 网格与日志
+
+The earlier Baby item-grid queue fixes tau=.2, lambda=.01, local_weight=.01,
 alpha=.5, seed999, and runs the full 16-point Cartesian grid:
 
 - ii_weight: .0001, .0005, .001, .005

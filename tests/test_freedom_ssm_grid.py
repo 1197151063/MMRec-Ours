@@ -7,11 +7,28 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'experiments'))
-from freedom_local_ssm_plan import build_grid_plan, build_item_grid_plan, TAUS, LAMBDAS, II_WEIGHTS, II_KS
+from freedom_local_ssm_plan import build_plan, build_grid_plan, build_item_grid_plan, TAUS, LAMBDAS, II_WEIGHTS, II_KS
 from run_night import summarize
 
 
 class FreedomSSMGridTest(unittest.TestCase):
+    def test_sports_local_only_sweep_leaves_tau_lambda_and_ii_fixed(self):
+        jobs = build_plan()
+        self.assertEqual([j['overrides']['local_weight'] for j in jobs], [.1, .01, .001])
+        fixed = [{k:v for k,v in j['overrides'].items() if k!='local_weight'} for j in jobs]
+        self.assertEqual(fixed, [fixed[0]] * 3)
+        self.assertEqual((fixed[0]['tau'], fixed[0]['lambda'], fixed[0]['ii_weight'], fixed[0]['knn_k']),
+                         (.2, .01, .0005, 10))
+        self.assertEqual(fixed[0]['seed'], 999)
+        run = subprocess.run([sys.executable, str(ROOT / 'experiments/run_night.py'),
+                              '--suite', 'freedom_local_ssm', '--dataset', 'sports',
+                              '--data-path', '/tmp/local-dry-run', '--dry-run'],
+                             capture_output=True, text=True, timeout=30)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        manifest = json.loads(run.stdout)
+        self.assertEqual(manifest['dataset'], 'sports')
+        self.assertEqual(manifest['jobs'], jobs)
+
     def test_full_cartesian_grid_and_dry_run(self):
         jobs = build_grid_plan()
         self.assertEqual(len(jobs), 20)

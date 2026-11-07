@@ -150,7 +150,7 @@ class FreedomLocalSSMTest(unittest.TestCase):
         self.assertEqual([row['state'] for row in summary], ['complete'] * 3, summary)
         self.assertFalse(list(output.rglob('*.pth')))
         jobs = json.loads((output / 'manifest.json').read_text())['jobs']
-        self.assertEqual([j['overrides']['local_weight'] for j in jobs], [.01, .1, 1.])
+        self.assertEqual([j['overrides']['local_weight'] for j in jobs], [.1, .01, .001])
         self.assertTrue(all(j['overrides']['seed'] == 999 and j['model'] == 'FreedomLocalSSM' for j in jobs))
 
     @unittest.skipUnless(torch.cuda.is_available(), 'CUDA required')
